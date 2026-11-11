@@ -529,3 +529,67 @@ body.op-prison #chat { background-image: repeating-linear-gradient(90deg, transp
     .op-svgmap svg { width: 680px; max-width: none; }
     .op-mdot text { font-size: 14px; } .op-mlab { font-size: 22px; }
 }
+
+/* ───────── v1.4: 라이트 테마 대응 — 확장 화면은 항상 자체 어두운 바탕 ───────── */
+.op-card { background: #0f2033 !important; color: #f1e6cc !important; border: 1px solid rgba(232, 179, 58, .22); border-radius: 10px; padding: 7px 9px !important; }
+.op-card.op-full { background: #0f2033 !important; }
+.op-card .op-chip, .op-card .op-ev, .op-card .op-card-head { color: #f1e6cc !important; }
+dialog:has(.op-pop), .popup:has(.op-pop) { background: #0f2033 !important; color: #f1e6cc !important; }
+.popup:has(.op-pop) .popup-body, .popup:has(.op-pop) .popup-content { background: transparent !important; color: #f1e6cc !important; }
+.op-pop { background: #0f2033; color: #f1e6cc; border-radius: 10px; padding: 10px 12px 12px !important; }
+.op-pop h3, .op-pop h4, .op-pop p, .op-pop li, .op-pop dd, .op-pop span, .op-pop b, .op-pop small, .op-pop summary, .op-pop label { color: inherit; }
+.op-pop .op-dim, .op-pop small.op-dim { color: #b9b09a !important; }
+.op-pop .op-title { color: #ffd56a !important; }
+.op-pop .op-sub, .op-pop .op-help summary, .op-pop .op-edit summary, .op-pop dt { color: #e8b33a !important; }
+.op-choice-list { background: #0f2033; border-radius: 10px; padding: 6px; }
+.op-choice { background: #14283d !important; color: #f1e6cc !important; }
+.op-tag, .custom-op-tag { color: #3a2a17 !important; background: #f1dfb2 !important; border-color: #c9a24b !important; }
+.op-tag[data-kind="fumble"] { color: #fff !important; background: #a52d25 !important; }
+.op-tag[data-kind="crit"] { background: #ffd56a !important; }
+.op-settings .op-feats { margin: 6px 0; padding: 6px 8px; border: 1px solid rgba(128, 128, 128, .35); border-radius: 8px; }
+.op-settings .op-feats summary { cursor: pointer; }
+.op-settings small { opacity: .8; }
+
+/* HUD 추가 */
+.op-ico { position: relative; }
+.op-badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #d2443a; color: #fff; font-size: 10px; font-style: normal; line-height: 16px; text-align: center; }
+.op-pill-rank { color: #9ad0ff; border-color: rgba(95, 176, 255, .35); }
+.op-chip-hex { border-color: rgba(185, 163, 232, .55); color: #e2d6ff; }
+.op-hexline { margin-top: 6px; }
+.op-ev-hex { border-color: #b98cff; background: rgba(185, 140, 255, .14); }
+.op-ev-letter { border-color: #8fd3c0; background: rgba(143, 211, 192, .12); }
+.op-act-custom { margin-top: 8px; }
+.op-act-custom .text_pole { flex: 1; }
+.op-num { width: 64px !important; flex: none !important; }
+
+/* 편지 */
+.op-letter-new { padding: 9px; border-radius: 10px; background: #14283d; border: 1px solid rgba(232, 179, 58, .25); display: flex; flex-direction: column; gap: 6px; }
+.op-letter-new textarea { width: 100%; }
+.op-threads { display: flex; flex-direction: column; gap: 6px; }
+.op-thread { border: 1px solid rgba(241, 230, 204, .14); border-radius: 10px; padding: 6px 9px; background: #0b1724; }
+.op-thread summary { cursor: pointer; font-weight: 700; color: #ffd56a !important; }
+.op-thread summary small { color: #b9b09a !important; font-weight: 400; }
+.op-msg { max-width: 86%; margin: 6px 0; padding: 7px 10px; border-radius: 12px; font-size: .92em; }
+.op-msg p { margin: 2px 0 0; white-space: pre-wrap; color: inherit !important; }
+.op-msg small { display: block; font-size: .78em; opacity: .8; }
+.op-msg small em { font-style: normal; }
+.op-msg-out { margin-left: auto; background: #2c4f73; color: #f1e6cc; border-bottom-right-radius: 3px; }
+.op-msg-in { margin-right: auto; background: #f1e2bd; color: #3a2a17 !important; border-bottom-left-radius: 3px; font-family: var(--op-serif); }
+.op-msg-in small { color: #6b5636 !important; }
+
+/* 메모장 */
+.op-note-opts { flex-wrap: wrap; gap: 10px; margin: 6px 0; }
+.op-notes { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.op-note { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: start; padding: 7px 9px; border-radius: 8px; background: #f4ecd9; color: #3a2a17 !important; }
+.op-note * { color: #3a2a17 !important; }
+.op-note p { margin: 0; white-space: pre-wrap; }
+.op-note small { grid-column: 2; font-size: .75em; opacity: .7; }
+.op-note-k { font-size: .75em; padding: 1px 6px; border-radius: 4px; background: #3a2a17 !important; color: #f1e6cc !important; }
+.op-note-acts { grid-column: 1 / -1; display: flex; gap: 4px; justify-content: flex-end; }
+.op-note-acts button { font: inherit; font-size: .78em; padding: 1px 8px; border-radius: 999px; border: 1px solid #c9a24b; background: transparent; cursor: pointer; }
+.op-note-acts button.on { background: #c9a24b !important; }
+.op-note.op-done p { text-decoration: line-through; opacity: .6; }
+.op-pop textarea.text_pole, .op-pop > input.text_pole, .op-pop > div > input.text_pole { width: 100%; box-sizing: border-box; }
+.op-pop .op-job-src, .op-pop .op-findrow span, .op-pop .op-head em { color: #f1e6cc !important; }
+.op-pop .op-job, .op-pop .op-job p, .op-pop .op-job b, .op-pop .op-job-foot span { color: #3a2a17 !important; }
+.op-pop .op-job-grade { color: #a52d25 !important; }

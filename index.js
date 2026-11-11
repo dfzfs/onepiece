@@ -25,6 +25,10 @@ const DEFAULTS = Object.freeze({
     choices: 'tense', // tense | always | off
     choiceClick: 'fill', // fill | send
     events: 'normal', // off | low | normal | high
+    hexAuto: 'rare', // 해프닝 자동 발동: off | rare | normal
+    // 부수 기능 켜고 끄기
+    featAct: true, featLetter: true, featMemo: true, featHex: true, featBoard: true, featNews: true,
+    featDates: true, featRumor: true, featAlbum: true,
     ticker: true,
     effects: true,
     injectDepth: 1,
@@ -494,6 +498,42 @@ const SHIP_PARTS = [
     { name: '측면 외륜', price: 6000000, desc: '바람 없는 칼름벨트도 건넌다.', en: 'paddle wheels (can cross the Calm Belt)' },
 ];
 
+
+// ───────────────────────────── 해프닝 (랜덤 저주) ─────────────────────────────
+// days: 지속 일수(0 = 그 자리에서 끝나는 사건) · mods: 판정 보정(all = 모든 판정) · ops: 즉시 효과
+const HEXES = [
+    { name: '고양이가 됐다', kind: '웃김', days: 1, desc: '몸이 고양이로 변했다. 말은 전부 "냥"으로 나온다.', en: 'turned into a cat; can only say "meow"', mods: { talk: -25, stealth: 15, agile: 10 } },
+    { name: '다람쥐 목소리', kind: '웃김', days: 1, desc: '목소리가 헬륨 마신 것처럼 높아졌다. 아무도 진지하게 안 듣는다.', en: 'squeaky helium voice; nobody takes {{user}} seriously', mods: { talk: -10 } },
+    { name: '거짓말 금지', kind: '웃김', days: 2, desc: '입만 열면 진실이 튀어나온다. 속마음까지.', en: 'can only speak the truth, even inner thoughts', mods: { talk: -10 } },
+    { name: '영혼 체인지', kind: '웃김', days: 1, desc: '가장 가까운 동료와 몸이 바뀌었다.', en: 'swapped bodies with the closest companion' },
+    { name: '꼬마가 됐다', kind: '웃김', days: 2, desc: '몸이 열 살 꼬마로 줄었다. 옷이 너무 크다.', en: 'shrunk into a ten-year-old body', mods: { power: -20, stealth: 10 } },
+    { name: '웃음 버섯', kind: '웃김', days: 1, desc: '이상한 버섯을 먹었다. 웃음이 멈추지 않는다.', en: 'ate a laughing mushroom; cannot stop laughing', mods: { stealth: -20, talk: -10 } },
+    { name: '모든 말이 노래', kind: '웃김', days: 1, desc: '하는 말이 전부 뮤지컬 노래가 된다.', en: 'every sentence comes out as a musical number', mods: { stealth: -10 } },
+    { name: '갈매기의 원한', kind: '웃김', days: 2, desc: '갈매기 떼가 졸졸 따라다니며 쪼아 댄다.', en: 'a flock of gulls follows and pecks {{user}} everywhere', mods: { stealth: -15 } },
+    { name: '해왕류의 짝사랑', kind: '웃김', days: 2, desc: '거대한 해왕류 한 마리가 배를 따라오며 구애한다.', en: 'a giant Sea King is in love with {{user}} and follows the ship' },
+    { name: '사랑의 묘약', kind: '로맨스', days: 1, desc: '처음 눈이 마주친 사람에게 홀딱 반해 버렸다.', en: 'love potion: hopelessly smitten with the first person they lock eyes with (temporary, embarrassing)' },
+    { name: '속마음 들림', kind: '로맨스', days: 1, desc: '가까운 사람의 속마음이 가끔 들린다. 듣고 싶지 않은 것까지.', en: 'sometimes hears the inner thoughts of people nearby', mods: { sense: 10 } },
+    { name: '젖은 발소리', kind: '공포', days: 2, desc: '밤마다 아무도 없는 갑판에 젖은 발자국이 찍힌다.', en: 'every night wet footprints appear on the empty deck; something follows', mods: { will: -10 } },
+    { name: '그림자 도둑', kind: '공포', days: 1, desc: '그림자가 사라졌다. 햇빛이 살을 태운다.', en: 'shadow stolen; sunlight burns', mods: { all: -5 } },
+    { name: '거울 속 타인', kind: '공포', days: 2, desc: '거울 속의 내가 반 박자 늦게 움직이고, 가끔 웃는다.', en: '{{user}}\'s reflection moves late and sometimes smiles on its own', mods: { sense: -10, will: -5 } },
+    { name: '유령선 조우', kind: '공포', days: 0, desc: '안개 속에서 낡은 유령선이 다가온다.', en: 'a ghost ship drifts out of the fog toward {{user}}' },
+    { name: '배가 뒤집혔다', kind: '재난', days: 0, desc: '돌풍에 배가 뒤집혔다. 짐 일부가 바다로.', en: 'a freak wave capsizes the ship; some cargo is lost', ops: [['ship', '-30'], ['item', '-식량 (10일분) 1']] },
+    { name: '움직이는 비구름', kind: '재난', days: 2, desc: '가는 곳마다 머리 위에만 비가 온다.', en: 'a personal rain cloud follows {{user}}', mods: { stealth: -5 } },
+    { name: '검은 고양이의 불운', kind: '이상', days: 2, desc: '하는 일마다 꼬인다.', en: 'everything goes wrong; comically bad luck', mods: { all: -10 } },
+    { name: '사라지는 동전', kind: '이상', days: 1, desc: '손에 쥔 동전이 하나씩 사라진다.', en: 'coins vanish from {{user}}\'s hands', ops: [['cash', '-3만']] },
+    { name: '바위처럼 무거움', kind: '이상', days: 1, desc: '몸이 바위처럼 무거워졌다. 물에 들어가면 가라앉는다.', en: 'body heavy as stone; sinks in water', mods: { agile: -20 } },
+    { name: '하루치 기억 상실', kind: '이상', days: 1, desc: '어제 일이 하나도 기억나지 않는다.', en: 'cannot remember yesterday at all' },
+];
+const HEX_KINDS = ['웃김', '로맨스', '공포', '재난', '이상'];
+
+// 진영별 추가 활동 (오늘 뭐 하지?)
+const FACTION_ACTS = {
+    marine: [{ ico: '🚩', name: '순찰 돌기', text: '맡은 구역을 순찰한다.' }, { ico: '🎯', name: '훈련', text: '연병장에서 훈련에 참가한다.' }, { ico: '📄', name: '보고서', text: '밀린 보고서를 쓴다. 무엇을 적고 무엇을 뺄까.' }],
+    government: [{ ico: '🕶️', name: '잠입·감시', text: '표적을 몰래 지켜본다.' }, { ico: '📞', name: '본부에 보고', text: '전보벌레로 본부에 보고를 올린다.' }],
+    revolution: [{ ico: '🤝', name: '동지와 접선', text: '현지 동지와 비밀리에 접선한다.' }, { ico: '🗂️', name: '첩보 수집', text: '이 섬의 권력자에 대해 조사한다.' }],
+    civil: [{ ico: '🏪', name: '가게 일', text: '오늘도 가게 문을 연다.' }, { ico: '🪙', name: '장사·흥정', text: '물건을 사고팔며 흥정한다.' }, { ico: '🙋', name: '이웃 돕기', text: '이웃의 부탁을 들어준다.' }],
+};
+
 // ───────────────────────────── 유틸 ─────────────────────────────
 
 const ctx = () => SillyTavern.getContext();
@@ -616,7 +656,7 @@ function freshState(profile) {
         case: '', foe: null, prison: null, seastone: false,
         dead: false, rewinds: 0, deaths: [], cgBounty: false, peakDanger: 0,
         news: [], alerts: [], log: [], checkpoints: [], pending: [], opening: false,
-        dream: { text: '', pct: 0 }, memories: [], finds: [], visited: [], start: { m: 1, d: 1 }, birthday: null,
+        dream: { text: '', pct: 0 }, memories: [], finds: [], visited: [], start: { m: 1, d: 1 }, birthday: null, hexes: [], mail: [], eraDetail: '',
     };
     if (!profile) return s;
     const f = factionOf(profile.faction);
@@ -640,7 +680,9 @@ function freshState(profile) {
     s.checkpoints.push({ at: -1, day: 1, loc: s.loc, island: islandOf(s.loc)?.n ?? s.loc });
     const isl0 = islandOf(s.loc);
     if (isl0) s.visited.push({ n: isl0.n, day: 1 });
-    for (const [nm, rel] of (profile.startBonds ?? []).slice(0, CAP.bonds)) s.bonds.push({ name: nm, aff: 30, love: 0, rel, note: '', met: 1 });
+    for (const [nm, rel, , aff, love] of (profile.startBonds ?? []).slice(0, CAP.bonds)) s.bonds.push({ name: nm, aff: clamp(Number(aff ?? 30) || 30, -100, 100), love: clamp(Number(love ?? 0) || 0, 0, 100), rel, note: '', met: 1 });
+    for (const [nm, role] of (profile.startCrew ?? []).slice(0, CAP.crew)) if (nm && !nameMatch(nm, s.name)) s.crew.push({ name: nm, role: role ?? '', status: '' });
+    s.eraDetail = profile.eraDetail ?? '';
     s.log.push({ day: 1, text: `출항 — ${s.factionLabel}${s.affil ? ` · ${s.affil}` : ''} · ${eraOf(s).name}` });
     return s;
 }
@@ -662,6 +704,7 @@ const KEYMAP = {
     love: 'love', '설렘': 'love', '애정': 'love', romance: 'love',
     memory: 'memory', '추억': 'memory', discover: 'discover', '발견': 'discover', find: 'discover',
     dream: 'dream', '꿈': 'dream',
+    hex: 'hex', '해프닝': 'hex', '저주': 'hex', curse: 'hex', letter: 'letter', '편지': 'letter',
     upgrade: 'upgrade', '개조': 'upgrade', _newship: '_newship',
     _timeskip: '_timeskip', _era: '_era', _rewind: '_rewind', _die: '_die', _survive: '_survive',
 };
@@ -794,6 +837,7 @@ function eventRoll(s, d, info) {
 }
 
 function checkDates(s, d, info) {
+    if (!settings().featDates) return;
     const dt = dateOf(s.start, d);
     if (s.birthday && s.birthday.m === dt.m && s.birthday.d === dt.d) {
         info.events.push({ type: 'love', text: `🎂 오늘은 ${s.name}의 생일 (${dateText(dt)})` });
@@ -813,11 +857,23 @@ function checkDates(s, d, info) {
     }
 }
 
+function hexRoll(s, d, info) {
+    const set = settings();
+    const rate = !set.featHex ? 0 : { off: 0, rare: 0.04, normal: 0.09 }[set.hexAuto] ?? 0;
+    if (!rate || s.mode === '수감' || s.dead) return;
+    const rnd = rngFrom(`${info.seed}:hex:${d}`);
+    if (rnd() > rate) return;
+    const pool = HEXES.filter(x => !s.hexes.some(y => y.name === x.name) && (x.name !== '배가 뒤집혔다' || (s.ship && !s.ship.status)));
+    const h = pool[Math.floor(rnd() * pool.length)];
+    if (h) applyOp(s, 'hex', `+${h.name}`, info);
+}
+
 function advanceDays(s, nd, info) {
     const from = s.day;
     s.day = nd;
     for (let d = from + 1; d <= nd; d++) checkDates(s, d, info);
-    for (let d = from + 1; d <= Math.min(nd, from + 3); d++) eventRoll(s, d, info);
+    for (let d = from + 1; d <= Math.min(nd, from + 3); d++) { eventRoll(s, d, info); hexRoll(s, d, info); }
+    s.hexes = s.hexes.filter(x => x.until >= s.day);
     s.alerts = s.alerts.filter(a => a.day >= s.day - 1);
 }
 
@@ -1165,6 +1221,32 @@ function applyOp(s, rawKey, rawVal, info) {
             break;
         }
         case 'news': if (val && !NONE_RE.test(val)) pushNews(s, val, 'world'); break;
+        case 'hex': {
+            if (!val || NONE_RE.test(val)) { if (s.hexes.length) info.events.push({ type: 'keep', text: '해프닝이 풀렸다' }); s.hexes = []; break; }
+            const m = val.match(/^([+\-−])?\s*(.+)$/);
+            const [nm, dayStr, desc] = splitBar(m[2]);
+            if (m[1] && m[1] !== '+') { s.hexes = s.hexes.filter(x => !nameMatch(x.name, nm)); info.events.push({ type: 'keep', text: `해프닝이 풀렸다 — ${nm}` }); break; }
+            if (s.hexes.some(x => x.name === nm)) break;
+            const known = HEXES.find(x => x.name === nm);
+            const days = dayStr && /\d/.test(dayStr) ? clamp(parseInt(dayStr, 10), 0, 30) : (known?.days ?? 1);
+            const h = { name: nm, kind: known?.kind ?? '', desc: desc || known?.desc || '', en: known?.en ?? '', until: s.day + days, mods: known?.mods ?? null };
+            if (days > 0) s.hexes.push(h);
+            for (const [k, v] of known?.ops ?? []) applyOp(s, k, v, info);
+            s.log.push({ day: s.day, text: `해프닝 — ${nm}` });
+            info.events.push({ type: 'hex', text: `🌀 해프닝 — ${nm}${h.desc ? ` · ${h.desc}` : ''}${days > 1 ? ` (${days}일)` : ''}` });
+            s.pending.push({ kind: 'hex', name: nm, en: h.en || h.desc, days });
+            break;
+        }
+        case 'letter': {
+            if (!val || NONE_RE.test(val)) break;
+            const [from, ...rest] = splitBar(val);
+            const text = rest.join(' | ');
+            if (!from || !text) break;
+            s.mail.push({ from, text, day: s.day });
+            if (s.mail.length > 10) s.mail = s.mail.slice(-10);
+            info.events.push({ type: 'letter', text: `✉️ 편지가 왔다 — ${from}` });
+            break;
+        }
         case 'upgrade': {
             if (!s.ship || !val) break;
             s.ship.parts ??= [];
@@ -1352,6 +1434,30 @@ function gapLine(s) {
     return '{{user}} outclasses this foe.';
 }
 
+const FACTION_LIFE = {
+    marine: 'Marine life: duty rosters, patrols, drills, reports, superiors and comrades, the weight of orders vs. personal justice. Pirates are enemies but also people.',
+    government: 'Government agent life: covers, surveillance, reports by den den mushi, the Celestial Dragons\' whims; trust no one.',
+    revolution: 'Revolutionary life: secret contacts, safehouses, forged papers, oppressed towns, the cost of hope.',
+    civil: 'Civilian life: work, rent, neighbors, prices, rumors of pirates and Marines passing through; an ordinary person\'s view of the Great Pirate Era — small acts matter.',
+};
+function unreadMail(s) {
+    const m = getMeta();
+    const seen = m?.mailSeen ?? 0;
+    const arrived = (m?.letters ?? []).filter(l => l.reply && !l.seen && l.arrive <= s.day).length;
+    return arrived + Math.max(0, s.mail.length - seen);
+}
+function lettersLine(s) {
+    const ls = (getMeta()?.letters ?? []).filter(l => l.status !== 'sending').slice(-3);
+    const parts = ls.map(l => `{{user}} → ${l.to} (Day ${l.day}): "${l.text.slice(0, 140)}"${l.status === 'lost' ? ' — never arrived (lost)' : l.reply && l.arrive <= s.day ? ` — reply from ${l.reply.from} (Day ${l.arrive}): "${l.reply.text.slice(0, 160)}"` : ' — reply not yet arrived'}`);
+    for (const m of s.mail.slice(-2)) parts.push(`${m.from} → {{user}} (Day ${m.day}): "${m.text.slice(0, 140)}"`);
+    return parts.length ? `Letters by News Coo post (both sides remember them): ${parts.join(' / ')}` : '';
+}
+function notesLine() {
+    const ns = (getMeta()?.notes ?? []).filter(n => n.reflect && !n.done).slice(-6);
+    if (!ns.length) return '';
+    return `{{user}}'s notebook (written by the player — 할 일 = what {{user}} intends to do, 기록 = what happened and should be remembered, 메모 = facts to keep): ${ns.map(n => `[${n.kind}] ${n.text.slice(0, 150)}`).join(' / ')}`;
+}
+
 function topBonds(s, n) {
     const score = (b, i) => Math.abs(b.aff) + (b.love ?? 0) * 1.5 + (b.rel ? 40 : 0) + i * 2 + (s.crew.some(c => norm(c.name) === norm(b.name)) ? 30 : 0);
     return s.bonds.map((b, i) => [b, score(b, i)]).sort((a, b) => b[1] - a[1]).slice(0, n).map(x => x[0]);
@@ -1366,11 +1472,9 @@ function buildInjection(s) {
     const d = dangerOf(s.bounty);
     const L = [];
     L.push(`[${TITLE} STATE — authoritative. Never recompute or invent these numbers.]`);
-    L.push(`Era: ${era.name} (${era.year}) ${era.token}`);
+    L.push(`Era: ${era.name} (${era.year}) ${era.token}${s.eraDetail ? ` — exact point: ${s.eraDetail}` : ''}`);
     L.push(`{{user}}: ${s.name}${s.age ? `, ${s.age}` : ''}${s.gender ? `, ${s.gender}` : ''} · ${s.race}${s.style ? ` · ${s.style}` : ''}${s.origin ? ` · from ${s.origin}` : ''} | ${s.factionLabel}${s.affil ? ` — ${s.affil}` : ''}${s.rank ? ` · ${s.rank}` : ''}${s.canonChar ? ' (plays this canon character: keep their canon history, abilities and relationships as of this era)' : ''}`);
     if (s.story) L.push(`Backstory: ${s.story}`);
-    const chs = (getMeta()?.chapters ?? []).slice(-2);
-    if (chs.length) L.push(`Story so far: ${chs.map(c => `[${c.title}] ${c.summary}`).join(' ')}`);
     L.push(`Day ${s.day} (${dateText(dateOf(s.start, s.day))}) ${s.time} | ${s.loc || 'location unset'}${s.sea ? ` (${s.sea})` : ''} | ${MODE_TOKEN[s.mode] ?? '#MODE_DAILY'}`);
     L.push(`HP ${s.hp}/100${s.dead ? ' #DEAD' : s.hp <= 0 ? ' #DYING' : s.hp <= 30 ? ' (badly hurt, sluggish)' : ''} · 격 ${TIER[s.tier]} (Tier ${s.tier}/6 = ${TIER_EN[s.tier]}) · ${berry(s.cash)} · Bounty ${s.bounty ? berry(s.bounty) : 'none'} · ${heatName(s)} ${s.heat}/100 · Danger ★${d} · Fame ${fameTitle(s.fame)}`);
     if (d) L.push(`Pursuit #HUNT${d}: ${HUNT_EN[d]}.`);
@@ -1387,7 +1491,12 @@ function buildInjection(s) {
     }
     if (s.dream?.text) L.push(`Dream: "${s.dream.text}" — ${s.dream.pct}% (raise only when a real step happens; it is {{user}}'s compass)`);
     if (s.memories.length) L.push(`Shared memories (call back to them naturally): ${s.memories.slice(-3).map(m => `${m.title}${m.with ? ` w/ ${m.with}` : ''}`).join(' / ')}`);
-    L.push(`Explored: ${s.visited.length}/${islandList.length} islands · ${s.finds.length} discoveries`);
+    if (set.featAlbum) L.push(`Explored: ${s.visited.length}/${islandList.length} islands · ${s.finds.length} discoveries`);
+    if (s.hexes.length) L.push(`Happenings (play them up — comedy or creepiness as fits, without breaking the story): ${s.hexes.map(x => `${x.name} (until Day ${x.until}): ${x.en || x.desc}`).join(' / ')}`);
+    if (set.featLetter) { const lt = lettersLine(s); if (lt) L.push(lt); }
+    if (set.featMemo) { const nt = notesLine(); if (nt) L.push(nt); }
+    if (!s.fruit) L.push('No Devil Fruit: {{user}} can swim and relies on skill, tools, haki and wits — make that path feel viable and cool.');
+    if (FACTION_LIFE[s.faction]) L.push(FACTION_LIFE[s.faction]);
     L.push(`Inventory: ${s.items.length ? itemsText(s) : 'nothing'} (only these items exist)`);
     if (s.case) L.push(`Job: ${s.case}`);
     if (s.foe) L.push(`Foe: ${s.foe.name} — 격 ${TIER[s.foe.tier]} (Tier ${s.foe.tier}), ${s.foe.pct}% left${s.foe.note ? ` (${s.foe.note})` : ''}. ${gapLine(s)}`);
@@ -1417,16 +1526,20 @@ function buildInjection(s) {
         if (p.kind === 'dream') dir.push(`[DREAM] {{user}} just took a real step toward their dream (${p.at}%). Let someone notice, or the world answer.`);
         if (p.kind === 'birthday') dir.push(p.self ? '[BIRTHDAY] Today is {{user}}\'s birthday. Those close to {{user}} may know (or find out) — let it show in their own way.' : `[BIRTHDAY] Today is ${p.name}'s birthday. Weave it in naturally; {{user}} may or may not know.`);
         if (p.kind === 'anniv') dir.push(`[ANNIVERSARY] It has been ${p.n} days since {{user}} met ${p.name}. Let it surface quietly if they are together or in contact.`);
+        if (p.kind === 'hex') dir.push(`[HAPPENING] "${p.name}" just struck {{user}}: ${p.en}. Show it now, vividly${p.days ? ` (it lasts about ${p.days} day${p.days > 1 ? 's' : ''})` : ''}. Let others react.`);
         if (p.kind === 'era') dir.push(`[ERA SHIFT] The world has moved into: ${ERAS[p.era].name}. Reflect the new status quo.`);
     }
-    if (s.opening) dir.push('[OPENING] This is the first scene. Open {{user}}\'s story in their starting situation (faction, affiliation, era, place) with a vivid, concrete hook. Bring in one or two era-appropriate canon or local characters. Do not recap the setup.');
+    if (s.opening) dir.push(s.canonChar
+        ? '[OPENING] This is the first scene. {{user}} IS this canon character at this exact point in the story: their crew, history, reputation and relationships already exist (see Crew/Bonds). Start in medias res at their current place — never from their very beginning — with a vivid hook. Do not recap the setup.'
+        : '[OPENING] This is the first scene. Open {{user}}\'s story in their starting situation (faction, affiliation, era, place) with a vivid, concrete hook. Bring in one or two era-appropriate canon or local characters. Do not recap the setup.');
     if (dir.length) L.push(dir.join('\n'));
 
     L.push('');
     L.push('[OUTPUT] Narrate in Korean (Korean official names: 루피, 조로, 나미, 상디, 아카이누…). END every reply with a <state> block: only what changed THIS turn, one key per line, numbers signed (+/-). Nothing changed → <state></state>. No code fences.');
-    L.push('Keys: hp · cash (베리, e.g. -5만) · heat (notorious or meritorious acts; the system converts it into bounty or promotion) · fame · bounty (only for canon-scheduled or explicit government decisions) · tier (+1 only after a defining victory or training arc) · day (+1 when the date changes) · time (새벽/아침/낮/저녁/밤/심야) · loc (섬 · 장소) · sea · mode (일상/항해/의뢰/전투/수감) · case (이름 | 진행; 없음 closes) · foe (이름 | 격 1-6 | 남은% | 특징; 없음 clears) · wound (+이름 / -이름) · maim (+부위 | 묘사 — permanent loss only) · item (+이름 2 / -이름 1) · crew (+이름 | 역할 / -이름 | 사유) · bond (이름 +10 | memo, or 이름 = 관계) · love (이름 +5 — romantic feeling, separate from bond trust; slow-burn) · memory (제목 | 한 줄 | 함께한 사람 — a moment worth remembering, at most one per scene) · discover (이름 | 종류 요리/명소/생물/보물/전설/역사/사람/물건 | 한 줄) · dream (+5 | 이유) · ship (이름 | -20 / 침몰 / 압수) · fruit (이름 | 계통 | 능력) · haki (무장 +1) · prison (임펠다운 LV4 / 없음) · confiscate (전부/절반/배/금액) · news (one headline) · alert (danger warning) · rank · seastone (착용/해제). Values in Korean.');
+    L.push(`Keys: hp · cash (베리, e.g. -5만) · heat (notorious or meritorious acts; the system converts it into bounty or promotion) · fame · bounty (only for canon-scheduled or explicit government decisions) · tier (+1 only after a defining victory or training arc) · day (+1 when the date changes) · time (새벽/아침/낮/저녁/밤/심야) · loc (섬 · 장소) · sea · mode (일상/항해/의뢰/전투/수감) · case (이름 | 진행; 없음 closes) · foe (이름 | 격 1-6 | 남은% | 특징; 없음 clears) · wound (+이름 / -이름) · maim (+부위 | 묘사 — permanent loss only) · item (+이름 2 / -이름 1) · crew (+이름 | 역할 / -이름 | 사유) · bond (이름 +10 | memo, or 이름 = 관계) · love (이름 +5 — romantic feeling, separate from bond trust; slow-burn) · ${set.featAlbum ? 'memory (제목 | 한 줄 | 함께한 사람 — a moment worth remembering, at most one per scene) · discover (이름 | 종류 요리/명소/생물/보물/전설/역사/사람/물건 | 한 줄) · ' : ''}${set.featLetter ? 'letter (보낸 사람 | 내용 — an NPC writes to {{user}} by gull post; occasionally) · ' : ''}${set.featHex ? 'hex (+이름 | 일수 | 묘사 — a rare absurd or eerie mishap; -이름 when lifted) · ' : ''}dream (+5 | 이유) · ship (이름 | -20 / 침몰 / 압수) · fruit (이름 | 계통 | 능력) · haki (무장 +1) · prison (임펠다운 LV4 / 없음) · confiscate (전부/절반/배/금액) · news (one headline) · alert (danger warning) · rank · seastone (착용/해제). Values in Korean.`);
     L.push('Example:\n<state>\nhp: -18\nheat: +15\ncash: +120만\nloc: 로그타운 · 처형대 광장\nfoe: 해군 대령 | 3 | 70 | 연기를 다룬다\nwound: +왼쪽 어깨 자상\n</state>');
     L.push(`Keep the named cast small: {{user}} tracks at most ${CAP.bonds} bonds and ${CAP.crew} crew. Passers-by stay unnamed and get no bond line; only add a bond for someone who will matter.`);
+    L.push('Romance & social rolls: [판정 · 매력/교섭 · 대상 X …] decides how X takes it — 성공 = it lands in X\'s own way, 실패 = X is unmoved or put off (no love gain), 대실패 = an awkward setback (trust -5~10). Unrolled flirting with someone whose ♥ is under 15 mostly does not land: canon characters are not easy.');
     L.push('Relationships — bond: a meaningful scene +3~10, betrayal -20+ · love: +2~8, never jumps; canon characters fall for people in their own way and pace (or not at all).');
     L.push('Scale — hp: graze -3~8 · solid hit -10~20 · a stronger 격\'s full blow -30~60 · two tiers above can end it in one hit · rest/doctor +10~30. heat: bar brawl +3 · beating a wanted pirate or Marine officer +10~20 · attacking officials +20~40 · a world-shaking incident +60~100.');
     L.push(rollTagRule());
@@ -1610,11 +1723,10 @@ function renderHUD(s) {
             <div class="op-minis"><span class="op-m-hp">♥ ${s.hp}</span>${s.bounty ? `<span class="op-m-bounty">฿ ${shortBerry(s.bounty)}</span>` : ''}${d ? `<span class="op-m-danger">★${d}</span>` : ''}</div>
             <span class="op-mode" data-mode="${mode}" title="${MODE_HELP}">${esc(s.mode)}</span>
             <div class="op-acts">
-                <button class="op-ico" data-act="act" title="오늘 뭐 하지? (활동)"><i class="fa-solid fa-umbrella-beach"></i></button>
-                <button class="op-ico" data-act="board" title="의뢰 게시판"><i class="fa-solid fa-clipboard-list"></i></button>
-                <button class="op-ico" data-act="news" title="세계경제신문"><i class="fa-solid fa-newspaper"></i></button>
+                ${set.featAct ? '<button class="op-ico" data-act="act" title="오늘 뭐 하지? (활동)"><i class="fa-solid fa-umbrella-beach"></i></button>' : ''}
+                ${set.featLetter ? `<button class="op-ico" data-act="letter" title="편지 (뉴스 쿠 우편)"><i class="fa-solid fa-envelope"></i>${unreadMail(s) ? `<em class="op-badge">${unreadMail(s)}</em>` : ''}</button>` : ''}
                 <button class="op-ico" data-act="roll" title="주사위 판정"><i class="fa-solid fa-dice-d20"></i></button>
-                <button class="op-ico op-ico-q" data-act="guide" title="안내">?</button>
+                <button class="op-ico" data-act="menu" title="더 보기 — 게시판 · 신문 · 메모장 · 해프닝 · 지도 · 안내"><i class="fa-solid fa-ellipsis"></i></button>
                 <button class="op-ico" data-act="expand" title="${set.hudExpanded ? '접기' : '펼치기'}"><i class="fa-solid fa-chevron-${set.hudExpanded ? 'up' : 'down'}"></i></button>
             </div>
         </div>
@@ -1624,15 +1736,15 @@ function renderHUD(s) {
         </div>
         <div class="op-pills">
             <span class="op-pill" title="재산"><i class="fa-solid fa-coins"></i> ${berry(s.cash)}</span>
-            <span class="op-pill op-pill-bounty" title="현상금">฿ ${s.bounty ? esc(korNum(s.bounty)) : '없음'}</span>
-            <span class="op-pill op-pill-danger" data-d="${d}" title="위험도 — ${esc(HUNT_KO[d] || '아직 아무도 당신을 쫓지 않는다')}">${stars(d)} <small>${DANGER_NAME[d]}</small></span>
+            ${isOutlaw(s) ? `<span class="op-pill op-pill-bounty" title="현상금">฿ ${s.bounty ? esc(korNum(s.bounty)) : '없음'}</span>
+            <span class="op-pill op-pill-danger" data-d="${d}" title="위험도 — ${esc(HUNT_KO[d] || '아직 아무도 당신을 쫓지 않는다')}">${stars(d)} <small>${DANGER_NAME[d]}</small></span>` : `<span class="op-pill op-pill-rank" title="${esc(s.affil)}">${s.faction === 'civil' ? '🏠' : '🎖️'} ${esc(s.rank || s.affil || s.factionLabel)}</span>`}
             <span class="op-pill" title="명성 ${s.fame}/100">명성 ${esc(fameTitle(s.fame))}</span>
             <span class="op-pill op-tier op-tier-${s.tier}" title="${esc(TIER_HELP[s.tier])}">격 ${TIER[s.tier]}</span>
             ${s.dream?.text ? `<span class="op-pill op-pill-dream" title="꿈: ${esc(s.dream.text)}">⭐ ${s.dream.pct}%</span>` : ''}
         </div>
+        ${s.hexes.length ? `<div class="op-chips op-hexline">${s.hexes.map(x => `<span class="op-chip op-chip-hex" title="${esc(x.desc)}">🌀 ${esc(x.name)} <small>~${x.until}일차</small></span>`).join('')}</div>` : ''}
         ${alert && alert.day >= s.day - 1 ? `<div class="op-alertline"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(alert.text)}</div>` : ''}
-        ${set.ticker && news ? `<div class="op-ticker op-click" data-act="news" title="세계경제신문"><i class="fa-solid fa-newspaper"></i><span>${esc(news.text)}</span><small>${news.day}일차</small></div>` : ''}
-        ${chapterGap() >= 60 ? `<div class="op-ticker op-click op-hint" data-act="chapterhint"><i class="fa-solid fa-book"></i><span>이야기가 길어졌어요 — 챕터로 묶어 두면 AI가 오래된 일도 기억해요</span><small>›</small></div>` : ''}
+        ${set.ticker && set.featNews && news ? `<div class="op-ticker op-click" data-act="news" title="세계경제신문"><i class="fa-solid fa-newspaper"></i><span>${esc(news.text)}</span><small>${news.day}일차</small></div>` : ''}
         ${foe}${panel}${more}`;
     hudPrev = { hp: s.hp, heat: s.heat };
 }
@@ -1658,7 +1770,8 @@ async function onHudClick(ev) {
         case 'timeskip': return openTimeskip();
         case 'newgame': return newVoyage();
         case 'act': return openActivity();
-        case 'chapterhint': return openSheetTab('log');
+        case 'letter': return openLetters();
+        case 'menu': return openMenu();
         case 'album': return openSheetTab('album');
         case 'bondview': return openBond(btn.dataset.n);
     }
@@ -1847,7 +1960,7 @@ function parseMD(v) {
     const mo = clamp(Number(m[1]), 1, 12), d = clamp(Number(m[2]), 1, MONTH_DAYS[mo - 1]);
     return { m: mo, d };
 }
-const FRUIT_TYPES = ['초인계', '자연계', '동물계', '동물계 · 환수종', '동물계 · 고대종'];
+const FRUIT_TYPES = ['초인계', '자연계', '동물계', '동물계 · 환수종', '동물계 · 고대종', '알 수 없음'];
 const opt = (v, label, sel) => `<option value="${esc(v)}" ${sel ? 'selected' : ''}>${esc(label ?? v)}</option>`;
 
 function defaultTier(fid, role) {
@@ -1877,6 +1990,7 @@ async function openRegister(editing = false) {
         <h4 class="op-sub">1 · 시대</h4>
         <select class="text_pole" data-f="era">${ERAS.map((e, i) => opt(i, `${e.name} (${e.year})`, (p?.era ?? 4) === i)).join('')}</select>
         <p class="op-dim" data-o="eranote"></p>
+        <input class="text_pole" data-f="eraDetail" value="${esc(p?.eraDetail ?? '')}" placeholder="세부 시점 (선택) — 예: 드레스로자 직후, 에니에스 로비 사건 사흘 전">
 
         <h4 class="op-sub">2 · 진영과 소속</h4>
         <div class="op-form-grid">
@@ -1944,12 +2058,15 @@ async function openRegister(editing = false) {
         <div class="op-form-grid">
             <label>꿈 — 이 바다에 나선 이유<select class="text_pole" data-f="dream">${DREAMS.map(d => opt(d, d, p?.dream === d)).join('')}</select>
                 <input class="text_pole op-hidden" data-f="dreamCustom" placeholder="예: 언젠가 하늘섬에 빵집을 연다" value="${esc(p?.dream && !DREAMS.includes(p.dream) ? p.dream : '')}"></label>
-            <label>시작 인연 (선택)<input class="text_pole" data-f="bonds" value="${esc((p?.startBonds ?? []).filter(x => !x[2]).map(([n, r]) => `${n}=${r}`).join(', '))}" placeholder="예: 나미=소꿉친구, 스모커=옛 상관"></label>
+            <label>시작 인연 (선택)<input class="text_pole" data-f="bonds" value="${esc((p?.startBonds ?? []).filter(x => !x[2]).map(([n, r, , a, l]) => `${n}=${r}${a != null && a !== 30 ? `:${a}` : ''}${l ? `:${l}` : ''}`).join(', '))}" placeholder="예: 나미=소꿉친구, 스모커=옛 상관:-20"></label>
+            <label class="op-wide">동료 · 선원 (선택, 최대 ${CAP.crew}명)<input class="text_pole" data-f="crew" value="${esc((p?.startCrew ?? []).map(([n, r]) => `${n}|${r}`).join(', '))}" placeholder="예: 조로|검사, 나미|항해사"></label>
+            <label class="op-wide">소지품 (선택)<input class="text_pole" data-f="items" value="${esc((p?.items ?? []).map(i => `${i.name}${i.qty > 1 ? ` ${i.qty}` : ''}`).join(', '))}" placeholder="비우면 진영 기본 장비 · 예: 밀짚모자, 고기 3"></label>
         </div>
-        <p class="op-dim">꿈은 상태창에 ⭐로 표시되고, 진짜 한 걸음을 뗄 때마다 차오릅니다. 시작 인연은 이미 아는 사이로 시작합니다(소속의 선장·상관은 자동).</p>
+        <p class="op-dim">꿈은 상태창에 ⭐로 표시되고, 진짜 한 걸음을 뗄 때마다 차오릅니다. 시작 인연은 "이름=관계" 또는 "이름=관계:신뢰:설렘"(예: 조로=동료:70:10). 소속의 선장·상관은 자동으로 들어갑니다. 원작 캐릭터라면 위의 「AI로 채우기」가 여기까지 대략 채워 줍니다.</p>
 
         <h4 class="op-sub">7 · 이야기의 목표 <small class="op-dim">(여러 개)</small></h4>
         <div class="op-checks">${GOALS.map(g => `<label><input type="checkbox" data-goal="${g}" ${(p?.goals ?? ['모험']).includes(g) ? 'checked' : ''}><span>${g}</span></label>`).join('')}</div>
+        <input class="text_pole" data-f="goalCustom" value="${esc((p?.goals ?? []).filter(g => !GOALS.includes(g)).join(', '))}" placeholder="직접 입력 (선택) — 예: 요리 대회 우승, 해군 몰래 연애">
 
         <h4 class="op-sub">8 · 캐논 엄격도</h4>
         <div class="op-seg op-seg-sm" data-g="canon">${CANON.map(x => `<button type="button" data-v="${x.id}" class="${(p?.canon ?? 'normal') === x.id ? 'on' : ''}"><b>${x.name}</b><small>${esc(x.desc)}</small></button>`).join('')}</div>
@@ -2053,31 +2170,37 @@ async function openRegister(editing = false) {
     if (['paradise', 'newworld', 'redline'].includes(seaObj.id) && !['marine', 'government'].includes(f.id)) kit.push(['로그 포스', 1]);
     const startBonds = [];
     for (const part of val('bonds').split(/\s*,\s*/).slice(0, CAP.bonds - 1)) {
-        const [n, r] = part.split('=').map(x => x?.trim());
-        if (n) startBonds.push([n, r || '아는 사이']);
+        const [n, rest] = part.split('=').map(x => x?.trim());
+        const [r, a, l] = String(rest ?? '').split(':').map(x => x.trim());
+        if (n) startBonds.push([n, r || '아는 사이', '', a !== undefined && a !== '' ? Number(a) : 30, l ? Number(l) : 0]);
     }
+    const startCrew = val('crew').split(/\s*,\s*/).map(x => x.split('|').map(y => y.trim())).filter(([n]) => n).slice(0, CAP.crew);
+    const itemsIn = val('items').trim()
+        ? val('items').split(/\s*,\s*/).map(x => x.match(/^(.+?)\s*(?:[x×]\s*)?(\d+)?$/)).filter(Boolean).map(m => ({ name: m[1].trim(), qty: Number(m[2] ?? 1) || 1 }))
+        : null;
     const auto = f.id === 'strawhat' ? ['몽키 D. 루피', '선장']
         : (affil.match(/(?:원수|대장|중장|소장|준장|대령|참모총장|총사령관)\s+([^\s(]+)/) ? [affil.match(/(?:원수|대장|중장|소장|준장|대령|참모총장|총사령관)\s+([^\s(]+)/)[1], '상관'] : null)
         ?? (affil.match(/\(([^)]+)\)/) && !/셸스|로그타운|G-5|비공식|군단|사이퍼|세계귀족|아직/.test(affil) ? [affil.match(/\(([^)]+)\)/)[1], f.id === 'pirate' ? '선장' : '상관'] : null);
-    if (auto && !startBonds.some(([n]) => n.includes(auto[0]) || auto[0].includes(n)) && !val('name').includes(auto[0])) startBonds.unshift([auto[0], auto[1], 'auto']);
+    const myName = val('name').trim() || c.name1 || '';
+    if (auto && !startBonds.some(([n]) => nameMatch(n, auto[0])) && !startCrew.some(([n]) => nameMatch(n, auto[0])) && !nameMatch(myName, auto[0]) && !(ctype === 'canon' && /선장|총사령관|원수/.test(rank))) startBonds.unshift([auto[0], auto[1], 'auto', 40, 0]);
     const profile = {
         birthday: parseMD(val('birthday')), start: parseMD(val('start')) ?? { m: new Date().getMonth() + 1, d: new Date().getDate() },
         photo: val('photo').trim(),
         dream: val('dream') === '직접 입력' ? q('[data-f="dreamCustom"]').value.trim() : val('dream'),
-        startBonds,
+        startBonds, startCrew, eraDetail: val('eraDetail').trim(),
         name: val('name').trim() || c.name1 || '이름 없는 자',
         age: val('age').trim(), gender: val('gender').trim(),
         race: pickC('race') || '인간', origin: pickC('origin'), style: pickC('style'), story: val('story').trim(),
         faction: f.id, factionLabel: f.id === 'custom' ? (q('[data-f="factionCustom"]').value.trim() || '무소속') : f.short,
         affil, rank, canonChar: ctype === 'canon',
         era: Number(val('era')), canon, diff,
-        goals: [...el.querySelectorAll('[data-goal]:checked')].map(x => x.dataset.goal),
+        goals: [...el.querySelectorAll('[data-goal]:checked')].map(x => x.dataset.goal).concat(val('goalCustom').split(/\s*,\s*/).filter(Boolean)),
         tier: Number(val('tier')),
         cash: cashIn ? Math.max(0, Math.round(parseNum(cashIn, 0))) : f.cash,
         bounty: val('bounty').trim() ? Math.max(0, Math.round(parseNum(val('bounty'), 0))) : 0,
         fruit, haki: { 견문: Number(val('hakiK')), 무장: Number(val('hakiB')), 패왕: 0 }, conqueror: val('conqueror') === '1',
         sea: seaObj.name, loc, ship: val('ship').trim(),
-        items: editing && p?.items ? p.items : kit.map(([name, qty]) => ({ name, qty })),
+        items: itemsIn ?? (editing && p?.items ? p.items : kit.map(([name, qty]) => ({ name, qty }))),
         fame: p?.fame ?? (val('bounty').trim() ? 20 : 0),
         at: editing && p ? (p.at ?? 0) : (c.chat?.length ?? 0),
     };
@@ -2121,7 +2244,14 @@ Output exactly these lines, nothing else:
 무장: (0-3)
 패왕: (있음/없음)
 위치: (그 시점에 있는 섬)
-사연: (그 시점의 상황 한 줄)`
+사연: (그 시점의 상황 한 줄)
+꿈: (한 줄)
+베리: (대략, 숫자)
+배: (타고 있는 배 이름, 없으면 없음)
+동료: (함께 다니는 동료, 최대 9명, "이름|역할"을 쉼표로)
+인연: (동료 말고 중요한 인물, 최대 6명, "이름=관계:신뢰(-100~100)"를 쉼표로)
+소지품: (상징적인 것 최대 4개, 쉼표로)
+Keep it rough and short: core people only, approximate numbers are fine.`
         : `Create one ORIGINAL character (not a canon character) for a One Piece role-play sim.
 Era: ${era.name}. Faction: ${factionOf(val('faction')).label}. Start sea: ${SEAS.find(x => x.id === val('sea')).name}.${name ? ` Name: ${name}.` : ''}
 Make them vivid with a concrete hook that fits the era. Values in Korean; the name should sound natural in the One Piece world.
@@ -2132,7 +2262,8 @@ Output exactly these lines, nothing else:
 종족:
 출신:
 특기:
-사연:`;
+사연:
+꿈: (one line)`;
     const out = await aiLines('You are an expert on the manga One Piece. Output only the requested format.', prompt, btn, ctype === 'canon' ? '원작을 뒤지는 중…' : '바다에서 사람을 찾는 중…');
     if (!out) return;
     const setv = (f, v) => { const el = q(`[data-f="${f}"]`); if (el && v) el.value = v; };
@@ -2147,6 +2278,7 @@ Output exactly these lines, nothing else:
     setSel('origin', pickLine(out, '출신'), ORIGINS);
     setSel('style', pickLine(out, '특기'), STYLES.map(x => x.name));
     setv('story', pickLine(out, '사연'));
+    if (ctype !== 'canon' && pickLine(out, '꿈')) { setv('dream', '직접 입력'); setv('dreamCustom', pickLine(out, '꿈')); }
     if (ctype === 'canon') {
         const fx = pickLine(out, '진영');
         const fid = /밀짚/.test(fx) ? 'strawhat' : /해군/.test(fx) ? 'marine' : /혁명/.test(fx) ? 'revolution' : /정부|CP/.test(fx) ? 'government' : /시민|민간/.test(fx) ? 'civil' : /해적/.test(fx) ? 'pirate' : null;
@@ -2169,6 +2301,13 @@ Output exactly these lines, nothing else:
         setv('hakiK', String(clamp(parseInt(pickLine(out, '견문'), 10) || 0, 0, 3)));
         setv('hakiB', String(clamp(parseInt(pickLine(out, '무장'), 10) || 0, 0, 3)));
         setv('conqueror', /있/.test(pickLine(out, '패왕')) ? '1' : '0');
+        const dream = pickLine(out, '꿈');
+        if (dream) { setv('dream', '직접 입력'); setv('dreamCustom', dream); }
+        const cash = Math.round(parseNum(pickLine(out, '베리'), 0)); if (cash > 0) setv('cash', String(cash));
+        const ship = pickLine(out, '배'); if (ship && !NONE_RE.test(ship)) setv('ship', ship);
+        const crewL = pickLine(out, '동료'); if (crewL && !NONE_RE.test(crewL)) setv('crew', crewL.split(/\s*,\s*/).filter(x => x && !nameMatch(x.split('|')[0], name)).slice(0, CAP.crew).join(', '));
+        const bondL = pickLine(out, '인연'); if (bondL && !NONE_RE.test(bondL)) setv('bonds', bondL.split(/\s*,\s*/).slice(0, 6).join(', '));
+        const itemL = pickLine(out, '소지품'); if (itemL && !NONE_RE.test(itemL)) setv('items', itemL);
         const where = pickLine(out, '위치');
         const isl = islandOf(where);
         if (isl) { setv('sea', isl.sea.id); const si = q('[data-f="island"]'); si.innerHTML = isl.sea.islands.map(i => opt(i.n, i.n, i.n === isl.n)).join('') + opt('__custom', '직접 입력'); }
@@ -2200,15 +2339,37 @@ const ROLL_TYPES = [
     { id: 'skill', name: '기술', desc: '검술·사격·체술의 정밀함', phys: true },
     { id: 'agile', name: '민첩', desc: '회피·추격·도주', phys: true },
     { id: 'sense', name: '견문', desc: '기척·관찰·통찰' },
-    { id: 'talk', name: '교섭', desc: '설득·흥정·허세·거짓말' },
+    { id: 'talk', name: '교섭', desc: '설득·흥정·허세·거짓말', social: true },
     { id: 'sail', name: '항해', desc: '조타·날씨·수리·지리' },
     { id: 'stealth', name: '은신', desc: '잠입·변장·숨기' },
     { id: 'will', name: '의지', desc: '패기 대결·공포·고문 버티기', phys: true },
+    { id: 'charm', name: '매력', desc: '호감 사기·유혹·설레게 하기', social: true },
+    { id: 'etc', name: '기타', desc: '직접 이름 붙이기' },
 ];
 const DIFFS = [{ name: '쉬움', t: 75 }, { name: '보통', t: 55 }, { name: '어려움', t: 35 }, { name: '무모', t: 15 }, { name: '절망', t: 5 }];
 
-function rollMods(s, type) {
+// 상대와의 관계가 판정을 바꾼다 — 너무 쉽게 넘어오지 않게
+function relMods(s, type, target, confess) {
     const m = [];
+    const b = target ? fuzzyFind(s.bonds, target) : null;
+    if (!target) return m;
+    if (!b) { if (type === 'charm') m.push(['처음 보는 사이', -15]); return m; }
+    const love = b.love ?? 0;
+    if (b.aff <= -20) m.push([`${b.name}의 적의`, -20]);
+    else if (b.aff >= 50) m.push([`${b.name}의 신뢰`, 8]);
+    if (type === 'charm') {
+        if (love >= 60) m.push(['이미 마음이 있다', 15]);
+        else if (love >= 35) m.push(['설레는 사이', 8]);
+        else if (love < 15 && b.aff < 20) m.push(['아직 그럴 사이가 아니다', -15]);
+    }
+    if (confess) m.push(['고백', love >= 60 ? 0 : love >= 35 ? -15 : -35]);
+    return m;
+}
+
+function rollMods(s, type, target, confess) {
+    const m = relMods(s, type, target, confess);
+    for (const h of s.hexes) { const v = h.mods?.[type] ?? h.mods?.all; if (v) m.push([`🌀 ${h.name}`, v]); }
+    if (!s.fruit && type === 'sail') m.push(['헤엄칠 수 있다', 5]);
     const rt = ROLL_TYPES.find(x => x.id === type);
     if (s.foe && ['power', 'skill', 'agile', 'will'].includes(type)) {
         const g = clamp((s.tier - s.foe.tier) * 12, -48, 24);
@@ -2229,7 +2390,7 @@ function rollMods(s, type) {
     if (type === 'will' && (hk.패왕 || s.conqueror)) m.push([hk.패왕 ? `패왕색 Lv${hk.패왕}` : '왕의 자질', hk.패왕 ? hk.패왕 * 10 : 5]);
     if (s.fruit && !s.seastone && ['power', 'skill'].includes(type)) m.push(['열매 능력', 8]);
     if (s.seastone && rt?.phys) m.push([s.fruit ? '해루석 (능력 봉인·탈력)' : '해루석 수갑', s.fruit ? -25 : -10]);
-    if (type === 'talk' && s.fame >= 45) m.push(['명성', 5]);
+    if ((type === 'talk' || type === 'charm') && s.fame >= 45) m.push(['명성', 5]);
     if (type === 'stealth' && dangerOf(s.bounty) >= 3) m.push(['얼굴이 알려짐', -10]);
     return m;
 }
@@ -2263,6 +2424,12 @@ async function openRoll(preType, preDiff, tag = '판정') {
         <p class="op-dim op-center">위험한 행동의 성패를 주사위(1~100)로 정합니다. 목표 이하면 성공 · 목표의 1/5 이하면 대성공 · 96 이상은 대실패. 격이 높은 적 앞에서는 목표가 크게 깎입니다. 결과를 입력창에 넣으면 AI가 그대로 따릅니다.</p>
         <div class="op-seg" data-g="type">${ROLL_TYPES.map((t, i) => `<button type="button" data-v="${t.id}" class="${(preType ? t.id === preType : i === 0) ? 'on' : ''}"><b>${t.name}</b><small>${t.desc}</small></button>`).join('')}</div>
         <div class="op-seg op-seg-sm" data-g="diff">${DIFFS.map((d, i) => `<button type="button" data-v="${i}" class="${(preDiff != null ? i === preDiff : i === 1) ? 'on' : ''}"><b>${d.name}</b><small>${d.t}</small></button>`).join('')}</div>
+        <div class="op-form-grid op-hidden" data-o="social">
+            <label>상대<select class="text_pole" data-f="target"><option value="">(없음)</option>${s.bonds.map(b => opt(b.name, `${b.name}${b.love ? ` ♥${b.love}` : ''}`)).join('')}<option value="__custom">직접 입력</option></select>
+                <input class="text_pole op-hidden" data-f="targetCustom" placeholder="이름"></label>
+            <label class="checkbox_label"><input type="checkbox" data-f="confess"> 고백한다</label>
+        </div>
+        <input class="text_pole op-hidden" data-f="etc" placeholder="판정 이름 — 예: 요리, 노래, 낚시">
         <label class="op-wide">무엇을 하는가 (선택)<input class="text_pole" data-f="what" placeholder="${tag === '탈옥' ? '예: 간수 교대 시간에 환풍구로 기어오른다' : '예: 돛대를 타고 올라 대포를 피한다'}"></label>
         <div class="op-mods" data-o="mods"></div>
         <div class="op-dice" data-o="dice"><div class="op-dice-in"><span>?</span></div></div>
@@ -2273,9 +2440,15 @@ async function openRoll(preType, preDiff, tag = '판정') {
     </div>`);
     const q = (x) => el.querySelector(x);
     let type = preType ?? 'power', diff = preDiff ?? 1, result = null;
-    const target = () => clamp(DIFFS[diff].t + rollMods(s, type).reduce((a, [, v]) => a + v, 0), 1, 95);
+    const who = () => { const v = q('[data-f="target"]').value; return v === '__custom' ? q('[data-f="targetCustom"]').value.trim() : v; };
+    const conf = () => q('[data-f="confess"]').checked;
+    const target = () => clamp(DIFFS[diff].t + rollMods(s, type, ROLL_TYPES.find(x => x.id === type)?.social ? who() : '', conf()).reduce((a, [, v]) => a + v, 0), 1, 95);
     const showMods = () => {
-        const mods = rollMods(s, type);
+        const social = !!ROLL_TYPES.find(x => x.id === type)?.social;
+        q('[data-o="social"]').classList.toggle('op-hidden', !social);
+        q('[data-f="targetCustom"]').classList.toggle('op-hidden', q('[data-f="target"]').value !== '__custom');
+        q('[data-f="etc"]').classList.toggle('op-hidden', type !== 'etc');
+        const mods = rollMods(s, type, social ? who() : '', social && conf());
         q('[data-o="mods"]').innerHTML = `기본 ${DIFFS[diff].t}${mods.map(([n, v]) => ` <span class="${v < 0 ? 'neg' : 'pos'}">${esc(n)} ${signed(v)}</span>`).join('')} → <b>목표 ${target()}</b>`;
     };
     el.addEventListener('click', async (e) => {
@@ -2296,12 +2469,15 @@ async function openRoll(preType, preDiff, tag = '판정') {
             q('[data-a="use"]').classList.remove('op-hidden');
         }
         if (a === 'use' && result) {
-            const tn = ROLL_TYPES.find(t => t.id === type).name;
+            const tn = type === 'etc' ? (q('[data-f="etc"]').value.trim() || '기타') : ROLL_TYPES.find(t => t.id === type).name;
             const what = q('[data-f="what"]').value.trim();
-            insertInput(`[${tag} · ${tn} · ${DIFFS[diff].name} · 목표 ${result.t} · 굴림 ${result.r} → ${result.j}] ${what}`);
+            const social = ROLL_TYPES.find(x => x.id === type)?.social && who();
+            insertInput(`[${tag} · ${tn}${social ? ` · 대상 ${who()}${conf() ? ' · 고백' : ''}` : ''} · ${DIFFS[diff].name} · 목표 ${result.t} · 굴림 ${result.r} → ${result.j}] ${what}`);
             closePopup(el);
         }
     });
+    el.addEventListener('change', showMods);
+    el.addEventListener('input', (e) => { if (e.target.dataset.f === 'targetCustom') showMods(); });
     showMods();
     await popup(el, { okButton: '닫기' });
 }
@@ -2568,7 +2744,7 @@ async function openActivity(preset) {
     if (s.dead) return;
     if (s.mode === '전투') return toastr.warning('지금은 그럴 때가 아니다 — 싸우는 중이다.', TITLE);
     const kind = s.mode === '수감' ? '수감' : s.mode === '항해' ? '항해' : '일상';
-    const list = ACTIVITIES[kind];
+    const list = [...ACTIVITIES[kind], ...(kind === '일상' ? FACTION_ACTS[s.faction] ?? [] : [])];
     const bonds = topBonds(s, CAP.bonds).filter(b => b.aff > -60);
     const crewN = s.crew.filter(c => !c.status).length;
     const el = h(`<div class="op-root op-pop">
@@ -2585,6 +2761,7 @@ async function openActivity(preset) {
             </div>
             <div class="op-roll-actions"><button type="button" class="op-btn op-btn-hot" data-a="go">이걸로 한다</button></div>
         </div>
+        <div class="op-inline op-act-custom"><input class="text_pole" data-f="custom" placeholder="직접 쓰기 — 예: 항구에서 그림을 그려 판다"><button type="button" class="op-btn op-btn-sm" data-a="custom">넣기</button></div>
     </div>`);
     let cur = null;
     const fire = async () => {
@@ -2608,6 +2785,10 @@ async function openActivity(preset) {
             return fire();
         }
         if (e.target.closest('[data-a="go"]') && cur) fire();
+        if (e.target.closest('[data-a="custom"]')) {
+            const v = el.querySelector('[data-f="custom"]').value.trim();
+            if (v) { insertInput(`(${v.replace(/^\(|\)$/g, '')}) `, false, 'replace'); closePopup(el); }
+        }
     });
     if (preset?.act) setTimeout(() => el.querySelectorAll('.op-actbtn')[list.findIndex(a => a.name === preset.act)]?.click(), 0);
     await popup(el, { okButton: '닫기' });
@@ -2693,52 +2874,228 @@ Output exactly these 4 lines:
     return r;
 }
 
-// ───────────────────────────── 챕터 요약 ─────────────────────────────
 
-function chapterGap() {
-    const m = getMeta();
-    const last = m?.chapters?.at(-1)?.to ?? ((m?.profile?.at ?? 1) - 1);
-    return (ctx().chat?.length ?? 0) - 1 - last;
-}
-async function makeChapter(btn, hide) {
-    const c = ctx();
-    const chat = c.chat ?? [];
-    const meta = getMeta(true);
-    meta.chapters ??= [];
+// ───────────────────────────── 더 보기 메뉴 ─────────────────────────────
+
+async function openMenu() {
     const s = current?.state;
-    const from = (meta.chapters.at(-1)?.to ?? ((meta.profile?.at ?? 1) - 1)) + 1;
-    const to = chat.length - 1;
-    if (to - from < 6) return toastr.info('챕터로 묶기엔 이야기가 아직 짧다.', TITLE);
-    let text = '';
-    for (let i = from; i <= to; i++) {
-        const m = chat[i];
-        const body = String(m?.mes ?? '').replace(/<(state|choices)>[\s\S]*?(?:<\/\1>|$)/gi, '').trim();
-        if (body) text += `${m.is_user ? (s?.name ?? 'user') : 'GM'}: ${body.slice(0, 700)}\n`;
-    }
-    if (text.length > 14000) text = text.slice(-14000);
-    const out = await aiLines('You summarize role-play logs. Output only the requested format, in Korean.',
-        `Summarize this chapter of a One Piece role-play whose protagonist is ${s?.name ?? 'the player'}.
-Keep: places visited, people met and how each relationship changed, promises, secrets, unresolved threads, what the protagonist wants next. No numbers or game stats.
-Format exactly:
-제목: (short and evocative)
-요약: (4-6 sentences, under 450 Korean characters)
+    if (!s?.registered) return openRegister();
+    const set = settings();
+    const items = [
+        set.featBoard && ['board', '📋', '의뢰 게시판'], set.featNews && ['news', '📰', '세계경제신문'],
+        set.featMemo && ['memo', '📝', '메모장'], set.featHex && ['hex', '🌀', '해프닝'],
+        ['map', '🗺️', '지도'], set.featAlbum && ['album', '📷', '앨범'], ['web', '💞', '관계'], ['sheet', '⚓', '상태창'], ['guide', '🧭', '안내'],
+    ].filter(Boolean);
+    const el = h(`<div class="op-root op-pop"><h3 class="op-title">⋯ 더 보기</h3>
+        <div class="op-acts-grid">${items.map(([k, ico, n]) => `<button type="button" class="op-actbtn" data-k="${k}"><span>${ico}</span><b>${n}</b></button>`).join('')}</div>
+        <p class="op-dim op-center">기능은 확장 설정에서 하나씩 끄고 켤 수 있습니다.</p></div>`);
+    el.addEventListener('click', (e) => {
+        const k = e.target.closest('[data-k]')?.dataset.k;
+        if (!k) return;
+        closePopup(el);
+        const go = { board: openBoard, news: openNews, memo: openMemo, hex: openHex, guide: () => openGuide(), sheet: openSheet, map: () => openSheetTab('map'), album: () => openSheetTab('album'), web: () => openSheetTab('web') }[k];
+        setTimeout(go, 200);
+    });
+    await popup(el, { okButton: '닫기' });
+}
 
----
-${text}`, btn, '챕터를 엮는 중…');
-    const title = pickLine(out, '제목');
-    const summary = (String(out).match(/요약\s*[:：]\s*([\s\S]+)/)?.[1] ?? '').trim();
-    if (!summary) return toastr.error('요약에 실패했다. 잠시 후 다시 시도하세요.', TITLE);
-    meta.chapters.push({ from, to, title: title || `챕터 ${meta.chapters.length + 1}`, summary: summary.slice(0, 600), day: s?.day });
-    if (meta.chapters.length > 12) meta.chapters = meta.chapters.slice(-12);
-    await saveMeta(true);
-    if (hide && to - 6 >= from) {
-        const cmd = `/hide ${from}-${to - 6}`;
-        const run = c.executeSlashCommandsWithOptions ?? c.executeSlashCommands;
-        try { if (!run) throw new Error('no runner'); await run(cmd); }
-        catch (e) { console.warn(LOG, e); toastr.warning(`자동 숨기기를 못 했다. 입력창에 ${cmd} 를 직접 보내세요.`, TITLE); }
-    }
-    refreshNow();
-    toastr.success(`📖 「${esc(title || '새 챕터')}」 — 메시지 ${from}~${to}를 묶었다.`, TITLE);
+// ───────────────────────────── 편지 (뉴스 쿠 우편) ─────────────────────────────
+// 보낸 편지: 채팅 메타에 저장(상태 계산과 무관). 받은 편지: AI가 <state> letter: 로 보낸 것 + 내 편지의 답장.
+
+function letterFate() {
+    const r = d100();
+    if (r <= 12) return { status: 'lost', delay: 0 };
+    if (r <= 20) return { status: 'stray', delay: 1 + (r % 2) };
+    if (r <= 35) return { status: 'delivered', delay: 1 + (r % 3) };
+    return { status: 'delivered', delay: 0 };
+}
+
+async function writeReply(s, to, text, stray) {
+    const b = fuzzyFind(s.bonds, to);
+    const era = eraOf(s);
+    const mems = s.memories.filter(m => m.with && nameMatch(m.with, to)).slice(-2).map(m => m.title).join(', ');
+    const prompt = stray
+        ? `One Piece world, ${era.name}. A News Coo got lost and delivered a letter meant for "${to}" to a random stranger instead (could be a sailor, a Marine, a child, a cook, a grumpy old man, a pirate — pick something fun and era-appropriate).
+The letter, from ${s.name}:
+"""${text}"""
+Write the stranger's short reply letter in Korean (2-5 sentences, letter style, signed with who they are). It can be confused, funny or oddly touching.
+Output only:
+보낸 사람: (who)
+내용: (the reply)`
+        : `One Piece role-play, ${era.name} (${era.year}). ${CANON_EN[s.canon]}
+${s.name} (${s.factionLabel}${s.rank ? `, ${s.rank}` : ''}) sent a letter by News Coo post to ${to}.
+Relationship from ${to}'s side: ${b ? `trust ${b.aff} (-100~100), romantic feeling ${b.love ?? 0} (0~100)${b.rel ? `, relation: ${b.rel}` : ''}${b.note ? `, note: ${b.note}` : ''}` : 'barely know each other'}${mems ? `; shared memories: ${mems}` : ''}.
+The letter:
+"""${text}"""
+Write ${to}'s reply letter in Korean, in their own voice (canon personality and speech if canon). 2-6 sentences, letter style — it can be short, awkward, teasing or warm as fits them and the relationship. No confession unless romantic feeling is 60+. Do not decide anything for ${s.name}.
+Output only:
+보낸 사람: ${to}
+내용: (the reply)`;
+    const out = await aiGenerate('You write in-character letters for a One Piece role-play. Output only the requested format, in Korean.', prompt);
+    const from = pickLine(out, '보낸 사람') || to;
+    const body = (String(out).match(/내용\s*[:：]\s*([\s\S]+)/)?.[1] ?? '').trim();
+    return body ? { from, text: body.slice(0, 900) } : null;
+}
+
+async function openLetters(preTo) {
+    const s = current?.state;
+    if (!s?.registered) return openRegister();
+    const meta = getMeta(true);
+    meta.letters ??= [];
+    // 도착한 답장·받은 편지는 연 순간 읽음 처리
+    meta.letters.forEach(l => { if (l.reply && l.arrive <= s.day) l.seen = true; });
+    meta.mailSeen = s.mail.length;
+    saveMeta();
+    renderHUD(s);
+    const people = [...new Set([...s.crew.map(c => c.name), ...s.bonds.map(b => b.name)])];
+    const threads = {};
+    for (const l of meta.letters) (threads[l.to] ??= []).push({ kind: 'out', ...l });
+    for (const m of s.mail) (threads[m.from] ??= []).push({ kind: 'in', day: m.day, text: m.text, from: m.from });
+    const names = Object.keys(threads).sort((a, b) => Math.max(...threads[b].map(x => x.day)) - Math.max(...threads[a].map(x => x.day)));
+    const bubble = (x) => {
+        if (x.kind === 'in') return `<div class="op-msg op-msg-in"><small>${esc(x.from)} · ${x.day}일차</small><p>${esc(x.text)}</p></div>`;
+        const st = x.status === 'lost' ? '<em class="neg">갈매기가 돌아오지 않았다</em>' : x.arrive > s.day ? '<em>날아가는 중… 🕊️</em>' : x.status === 'stray' ? '<em class="warn">엉뚱한 사람에게 갔다</em>' : '<em class="pos">전해짐</em>';
+        let out = `<div class="op-msg op-msg-out"><small>나 · ${x.day}일차 · ${st}</small><p>${esc(x.text)}</p></div>`;
+        if (x.reply && x.arrive <= s.day) out += `<div class="op-msg op-msg-in"><small>${esc(x.reply.from)} · ${x.arrive}일차</small><p>${esc(x.reply.text)}</p></div>`;
+        return out;
+    };
+    const el = h(`<div class="op-root op-pop">
+        <h3 class="op-title">✉️ 뉴스 쿠 우편</h3>
+        <p class="op-dim op-center">짧게 써서 갈매기에게 맡기면 상대에게 전해지고 답장이 옵니다. 가끔은 늦게 오고, 엉뚱한 사람에게 가고, 아예 사라지기도 합니다. 주고받은 편지는 AI도 기억합니다.</p>
+        <div class="op-letter-new">
+            <div class="op-inline"><select class="text_pole" data-f="to">${people.map(n => opt(n, n, n === preTo)).join('')}<option value="__custom">직접 입력</option></select>
+                <input class="text_pole ${people.length ? 'op-hidden' : ''}" data-f="toCustom" placeholder="받는 사람"></div>
+            <textarea class="text_pole" rows="3" data-f="text" maxlength="600" placeholder="예: 잘 지내? 이번 섬은 고기가 맛있어. 네 생각이 났어."></textarea>
+            <div class="op-roll-actions"><button type="button" class="op-btn op-btn-hot" data-a="send"><i class="fa-solid fa-dove"></i> 갈매기에게 맡긴다</button></div>
+            <p class="op-center" data-o="res"></p>
+        </div>
+        <h4 class="op-sub">주고받은 편지</h4>
+        <div class="op-threads">${names.map(n => `<details class="op-thread" ${n === preTo || names[0] === n ? 'open' : ''}><summary>${esc(n)} <small>${threads[n].length}통</small></summary>${threads[n].sort((a, b) => a.day - b.day).map(bubble).join('')}</details>`).join('') || '<p class="op-dim">아직 주고받은 편지가 없다.</p>'}</div>
+    </div>`);
+    const q = (x) => el.querySelector(x);
+    if (!people.length) q('[data-f="to"]').value = '__custom';
+    el.addEventListener('change', () => q('[data-f="toCustom"]').classList.toggle('op-hidden', q('[data-f="to"]').value !== '__custom'));
+    el.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-a="send"]');
+        if (!btn || btn.disabled) return;
+        const to = q('[data-f="to"]').value === '__custom' ? q('[data-f="toCustom"]').value.trim() : q('[data-f="to"]').value;
+        const text = q('[data-f="text"]').value.trim();
+        if (!to || !text) return toastr.warning('받는 사람과 내용을 써 주세요.', TITLE);
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 갈매기가 날아가는 중…';
+        const fate = letterFate();
+        const l = { id: Date.now(), to, text, day: s.day, status: fate.status, arrive: s.day + fate.delay, reply: null, seen: false };
+        if (fate.status !== 'lost') {
+            try { l.reply = await writeReply(s, to, text, fate.status === 'stray'); } catch (err) { console.warn(LOG, err); }
+            if (!l.reply) l.status = 'lost';
+        }
+        meta.letters.push(l);
+        if (meta.letters.length > 30) meta.letters = meta.letters.slice(-30);
+        await saveMeta(true);
+        refreshNow();
+        const msg = l.status === 'lost' ? '갈매기가 바다 너머로 사라졌다. 편지는 닿지 못한 것 같다…'
+            : l.arrive > s.day ? `편지는 떠났다. 답장은 ${l.arrive - s.day}일쯤 뒤에 올 것 같다.`
+            : l.status === 'stray' ? '답장이 왔다. …그런데 모르는 사람이다?' : `${to}에게서 답장이 왔다!`;
+        closePopup(el);
+        toastr.info(esc(msg), '✉️ 뉴스 쿠 우편');
+        setTimeout(() => openLetters(to), 250);
+    });
+    await popup(el, { okButton: '닫기' });
+}
+
+// ───────────────────────────── 메모장 ─────────────────────────────
+
+const NOTE_KINDS = ['할 일', '오늘의 기록', '메모'];
+async function openMemo() {
+    const s = current?.state;
+    if (!s?.registered) return openRegister();
+    const meta = getMeta(true);
+    meta.notes ??= [];
+    const draw = () => meta.notes.slice().reverse().map(n => `<div class="op-note${n.done ? ' op-done' : ''}" data-id="${n.id}">
+        <span class="op-note-k">${esc(n.kind)}</span><p>${esc(n.text)}</p><small>${n.day}일차</small>
+        <span class="op-note-acts">
+            ${n.kind === '할 일' ? `<button type="button" data-a="done" title="완료">${n.done ? '↺' : '✓'}</button>` : ''}
+            <button type="button" data-a="reflect" class="${n.reflect ? 'on' : ''}" title="AI에 반영">${n.reflect ? 'AI 반영 중' : 'AI 미반영'}</button>
+            <button type="button" data-a="del" title="지우기">×</button></span></div>`).join('') || '<p class="op-dim">아직 메모가 없다.</p>';
+    const el = h(`<div class="op-root op-pop">
+        <h3 class="op-title">📝 메모장</h3>
+        <p class="op-dim op-center">할 일 · 오늘의 기록 · 메모. "AI 반영"을 켠 메모(최근 6개)만 AI에게 전달됩니다. 끈 메모는 나만 봅니다.</p>
+        <div class="op-seg op-seg-sm" data-g="kind">${NOTE_KINDS.map((k, i) => `<button type="button" data-v="${k}" class="${i === 0 ? 'on' : ''}"><b>${k}</b></button>`).join('')}</div>
+        <textarea class="text_pole" rows="2" data-f="text" maxlength="300" placeholder="예: 다음 섬에서 조로에게 술 사 주기"></textarea>
+        <div class="op-inline op-note-opts">
+            <label class="checkbox_label"><input type="checkbox" data-f="reflect" checked> AI에 반영</label>
+            ${settings().featAlbum ? '<label class="checkbox_label"><input type="checkbox" data-f="album"> 앨범 추억으로도 남기기</label>' : ''}
+            <button type="button" class="op-btn op-btn-hot op-btn-sm" data-a="add">적기</button>
+        </div>
+        <div class="op-notes" data-o="list">${draw()}</div>
+    </div>`);
+    let kind = NOTE_KINDS[0];
+    el.addEventListener('click', async (e) => {
+        const seg = e.target.closest('.op-seg button');
+        if (seg) { el.querySelectorAll('.op-seg button').forEach(b => b.classList.toggle('on', b === seg)); kind = seg.dataset.v; return; }
+        const a = e.target.closest('[data-a]')?.dataset.a;
+        if (!a) return;
+        if (a === 'add') {
+            const text = el.querySelector('[data-f="text"]').value.trim();
+            if (!text) return;
+            meta.notes.push({ id: Date.now(), kind, text, reflect: el.querySelector('[data-f="reflect"]').checked, done: false, day: s.day });
+            if (meta.notes.length > 20) meta.notes = meta.notes.slice(-20);
+            if (el.querySelector('[data-f="album"]')?.checked) await addAdjust([['memory', `${text.slice(0, 24)} | ${text}`]], '');
+            el.querySelector('[data-f="text"]').value = '';
+        } else {
+            const id = Number(e.target.closest('[data-id]')?.dataset.id);
+            const n = meta.notes.find(x => x.id === id);
+            if (!n) return;
+            if (a === 'done') n.done = !n.done;
+            if (a === 'reflect') n.reflect = !n.reflect;
+            if (a === 'del') meta.notes = meta.notes.filter(x => x !== n);
+        }
+        await saveMeta();
+        refreshNow();
+        el.querySelector('[data-o="list"]').innerHTML = draw();
+    });
+    await popup(el, { okButton: '닫기' });
+}
+
+// ───────────────────────────── 해프닝 ─────────────────────────────
+
+async function openHex() {
+    const s = current?.state;
+    if (!s?.registered) return openRegister();
+    const el = h(`<div class="op-root op-pop">
+        <h3 class="op-title">🌀 해프닝</h3>
+        <p class="op-dim op-center">위대한 항로에선 이상한 일이 일어납니다. 고양이가 되거나, 배가 뒤집히거나, 거울 속의 내가 웃거나. 날짜가 바뀔 때 가끔 저절로 일어나고(설정에서 빈도 조절), 여기서 직접 일으킬 수도 있습니다.</p>
+        ${s.hexes.length ? `<h4 class="op-sub">지금 걸려 있는 것</h4>${s.hexes.map(x => `<div class="op-item"><b>🌀 ${esc(x.name)}</b><span>${esc(x.desc)} · ~${x.until}일차</span><button type="button" class="op-x" data-a="lift" data-n="${esc(x.name)}" title="풀기">×</button></div>`).join('')}` : ''}
+        <h4 class="op-sub">무작위로 일으키기</h4>
+        <div class="op-acts-grid">${['랜덤', ...HEX_KINDS].map(k => `<button type="button" class="op-actbtn" data-kind="${k}"><span>${{ 랜덤: '🎲', 웃김: '🤪', 로맨스: '💘', 공포: '👻', 재난: '🌊', 이상: '🔮' }[k]}</span><b>${k}</b></button>`).join('')}</div>
+        <h4 class="op-sub">직접 정하기</h4>
+        <div class="op-form-grid">
+            <label>이름<input class="text_pole" data-f="name" placeholder="예: 펭귄이 됐다"></label>
+            <label>며칠 동안<input type="number" min="0" max="30" class="text_pole" data-f="days" value="1"></label>
+            <label class="op-wide">어떤 일인지<input class="text_pole" data-f="desc" placeholder="예: 뒤뚱뒤뚱 걷고 물고기가 맛있어 보인다"></label>
+            <button type="button" class="op-btn op-btn-hot op-btn-sm" data-a="custom">일으킨다</button>
+        </div>
+    </div>`);
+    el.addEventListener('click', async (e) => {
+        const k = e.target.closest('[data-kind]')?.dataset.kind;
+        const a = e.target.closest('[data-a]');
+        if (k) {
+            const pool = HEXES.filter(x => (k === '랜덤' || x.kind === k) && !s.hexes.some(y => y.name === x.name) && (x.name !== '배가 뒤집혔다' || (s.ship && !s.ship.status)));
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            if (!pick) return toastr.info('일으킬 해프닝이 없다.', TITLE);
+            await addAdjust([['hex', `+${pick.name}`]], '');
+            closePopup(el);
+        } else if (a?.dataset.a === 'custom') {
+            const nm = el.querySelector('[data-f="name"]').value.trim();
+            if (!nm) return toastr.warning('이름을 써 주세요.', TITLE);
+            await addAdjust([['hex', `+${nm} | ${el.querySelector('[data-f="days"]').value || 1} | ${el.querySelector('[data-f="desc"]').value.trim()}`]], '');
+            closePopup(el);
+        } else if (a?.dataset.a === 'lift') {
+            await addAdjust([['hex', `-${a.dataset.n}`]], `해프닝 풀림 — ${a.dataset.n}`);
+            closePopup(el);
+        }
+    });
+    await popup(el, { okButton: '닫기' });
 }
 
 // ───────────────────────────── 안내 ─────────────────────────────
@@ -2751,7 +3108,9 @@ const GUIDE = [
             <li><b>행동 쓰기</b> — "술집에서 정보를 캔다", "해군 대령에게 덤빈다"처럼 자유롭게.</li>
             <li><b>📋 의뢰 게시판</b> — 진영에 맞는 일거리가 들어옵니다. 막히면 여기부터.</li>
             <li><b>📰 신문</b> — 세계경제신문. 그 시대의 큰 사건과, 이름이 알려지면 내 기사도 실립니다.</li>
-            <li><b>🏝️ 오늘 뭐 하지?</b> — 명물 먹기, 섬 탐험, 낚시, 연회, 함께 시간 보내기, 선물… 막막할 때 누르세요.</li>
+            <li><b>🏝️ 오늘 뭐 하지?</b> — 명물 먹기, 섬 탐험, 낚시, 연회, 함께 시간 보내기, 선물… 막막할 때 누르세요. 직접 써 넣을 수도 있어요.</li>
+            <li><b>✉️ 편지</b> — 갈매기에게 맡기면 답장이 옵니다. 가끔 늦거나, 엉뚱한 사람에게 가거나, 사라져요.</li>
+            <li><b>⋯ 더 보기</b> — 게시판·신문·📝 메모장·🌀 해프닝·지도·앨범·안내.</li>
             <li><b>🎲 판정</b> — 위험한 행동은 주사위로. 격이 높은 적 앞에선 목표가 확 떨어집니다.</li>
         </ol>
         <p class="op-dim">이 바다는 빡셉니다. 강한 놈은 정말 강하고, 몸은 다치면 안 돌아오고, 붙잡히면 재산을 다 뺏기고 임펠다운에 갑니다. 그래도 낭만은 있습니다.</p>`],
@@ -2761,6 +3120,9 @@ const GUIDE = [
         <dt>현상금 · 위험도 ★</dt><dd>현상금이 오를수록 위험도가 오르고 쫓아오는 자가 강해진다. ★1 잔챙이 사냥꾼 → ★5 버스터콜·대장급.</dd>
         <dt>신뢰 · 설렘</dt><dd>인연마다 두 줄. 신뢰(−100~100)는 우정과 믿음, 설렘(0~100)은 연애 감정. 설렘 15 신경 쓰임 → 35 설렘 → 60 사랑 → 85 깊은 사랑. 문턱을 넘으면 작은 장면이 생긴다.</dd>
         <dt>꿈 ⭐</dt><dd>바다에 나선 이유. 진짜 한 걸음을 뗄 때마다 차오르고, 25·50·75·100%에서 이야기가 반응한다.</dd>
+        <dt>매력 판정</dt><dd>🎲에서 매력·교섭을 고르면 상대를 정할 수 있다. 아직 낯선 사이면 목표가 크게 깎이고, 마음이 있으면 오른다. 고백은 설렘 60 전엔 아주 어렵다.</dd>
+        <dt>해프닝</dt><dd>가끔 일어나는 이상한 일. 고양이가 되거나, 배가 뒤집히거나, 거울 속 내가 웃거나. 며칠 지나면 풀린다.</dd>
+        <dt>메모장</dt><dd>할 일·오늘의 기록·메모. "AI 반영"을 켠 것만 AI가 읽는다.</dd>
         <dt>앨범</dt><dd>추억(함께한 장면), 발견(명물·비경·생물·전설·보물), 상륙한 섬. 처음 상륙한 섬은 첫인상 장면이 나온다.</dd>
         <dt>명성</dt><dd>무명 → 소문 → 신문 단신 → 신문 1면 → 세계적 유명인 → 전설.</dd>
         <dt>악마의 열매</dt><dd>먹으면 능력을 얻는 대신 헤엄칠 수 없다. 해루석에 닿으면 힘이 빠진다.</dd>
@@ -2868,7 +3230,7 @@ function isleInfo(i, s) {
         <p>${esc(i.d)}</p>${castHTML(s, i.n)}
         <div class="op-rumor" data-o="rumor-${esc(i.n)}">${r ? rumorHTML(r) : ''}</div>
         <div class="op-roll-actions">
-            <button type="button" class="op-btn op-btn-sm" data-a="rumor" data-n="${esc(i.n)}"><i class="fa-solid fa-ear-listen"></i> 이 시대의 소문</button>
+            ${settings().featRumor ? `<button type="button" class="op-btn op-btn-sm" data-a="rumor" data-n="${esc(i.n)}"><i class="fa-solid fa-ear-listen"></i> 이 시대의 소문</button>` : ''}
             <button type="button" class="op-btn op-btn-sm op-btn-hot" data-a="goto" data-n="${esc(i.n)}"><i class="fa-solid fa-sailboat"></i> 이곳으로 향한다</button>
             <button type="button" class="op-btn op-btn-sm" data-a="sea" data-n="${i.sea.id}">${esc(i.sea.name)} 목록</button>
         </div></div>`;
@@ -2884,7 +3246,7 @@ function seaInfo(sea, here, s) {
             return `<div class="op-isle${here?.n === i.n ? ' here' : ''}${v ? ' op-visited' : ''}">
             <div><b>${v ? '✓ ' : ''}${esc(i.n)}</b>${here?.n === i.n ? ' <span class="op-pin">● 현재</span>' : ''}<small>${esc(i.d)}</small>${s ? castHTML(s, i.n) : ''}
                 <div class="op-rumor" data-o="rumor-${esc(i.n)}">${r ? rumorHTML(r) : ''}</div></div>
-            <button type="button" class="op-btn op-btn-sm" data-a="rumor" data-n="${esc(i.n)}" title="이 시대의 이 섬 — 분위기·명물·인물·소문 (AI)"><i class="fa-solid fa-ear-listen"></i></button>
+            ${settings().featRumor ? `<button type="button" class="op-btn op-btn-sm" data-a="rumor" data-n="${esc(i.n)}" title="이 시대의 이 섬 — 분위기·명물·인물·소문 (AI)"><i class="fa-solid fa-ear-listen"></i></button>` : ''}
             <button type="button" class="op-btn op-btn-sm" data-a="goto" data-n="${esc(i.n)}" title="이곳으로 향한다"><i class="fa-solid fa-sailboat"></i></button></div>`;
         }).join('')}</div>
     </div>`;
@@ -2900,7 +3262,16 @@ function albumHTML(s) {
         <h4 class="op-sub">🧭 발견 ${s.finds.length}</h4>
         ${s.finds.length ? Object.entries(byKind).map(([k, l]) => `<p class="op-findrow"><span>${esc(k)}</span>${l.map(f => `<em title="${esc(`${f.desc} — ${f.day}일차 ${f.loc}`)}">${esc(f.name)}</em>`).join('')}</p>`).join('') : '<p class="op-dim">명물 요리, 비경, 생물, 전설, 보물… 처음 본 것이 여기에 모입니다.</p>'}
         <h4 class="op-sub">⚓ 상륙한 섬 ${s.visited.length}/${islandList.length}</h4>
-        <div class="op-chips">${s.visited.map(v => `<span class="op-chip">✓ ${esc(v.n)} <small>${v.day}일차</small></span>`).join('') || '<span class="op-dim">아직 없다.</span>'}</div>`;
+        <div class="op-chips">${s.visited.map(v => `<span class="op-chip">✓ ${esc(v.n)} <small>${v.day}일차</small></span>`).join('') || '<span class="op-dim">아직 없다.</span>'}</div>
+        <details class="op-edit"><summary>직접 남기기</summary>
+            <div class="op-form-grid">
+                <label>종류<select class="text_pole" data-f="alKind">${opt('memory', '추억')}${FIND_KINDS.map(k => opt(k, `발견 · ${k}`)).join('')}</select></label>
+                <label>제목·이름<input class="text_pole" data-f="alName" placeholder="예: 첫 연회"></label>
+                <label>한 줄<input class="text_pole" data-f="alDesc" placeholder="예: 다 같이 고기를 굽고 노래했다"></label>
+                <label>함께한 사람 (추억)<input class="text_pole" data-f="alWith" placeholder="예: 루피"></label>
+                <button type="button" class="op-btn op-btn-sm op-btn-hot" data-a="aladd">남기기</button>
+            </div>
+        </details>`;
 }
 
 // ───────────────────────────── 관계도 ─────────────────────────────
@@ -2909,20 +3280,6 @@ const affLabelBase = (b) => b.rel || (b.aff >= 80 ? '특별' : b.aff >= 50 ? '�
 const affLabel = (b) => affLabelBase(b);
 const affTone = (b) => (b.love >= 35 ? '#ff7fa8' : 0) || (/연인|약혼|부부/.test(b.rel) ? '#ff7fa8' : b.aff >= 50 ? '#7fd1b9' : b.aff >= 20 ? '#e8b33a' : b.aff > -20 ? '#b8ad97' : '#ff6a5a');
 
-function webHTML(s) {
-    const nodes = [];
-    const crew = s.crew.slice(0, CAP.crew);
-    crew.forEach((c, i, a) => nodes.push({ kind: 'crew', name: c.name, sub: c.status || c.role || '동료', r: 25, a: -90 + (360 / a.length) * i, tone: '#5fb0ff' }));
-    const bonds = s.bonds.filter(b => !crew.some(c => norm(c.name) === norm(b.name))).slice(-10);
-    bonds.forEach((b, i, a) => nodes.push({ kind: 'bond', name: b.name, sub: `${b.love >= 15 ? `♥${LOVE_NAME[loveStage(b.love)]}` : affLabel(b)}`, r: 42, a: 90 + (360 / a.length) * i - (a.length > 1 ? 180 / a.length : 0), tone: affTone(b), w: Math.abs(b.aff) / 20 }));
-    const lines = nodes.map(n => `<i class="op-web-line" style="width:${n.r}%;transform:rotate(${n.a}deg);border-color:${n.tone};opacity:${n.kind === 'crew' ? .75 : .25 + Math.min(n.w ?? 0, 5) * .12};${n.kind === 'crew' ? 'border-top-style:dashed;' : ''}"></i>`).join('');
-    const dots = nodes.map(n => {
-        const rad = n.a * Math.PI / 180;
-        return `<div class="op-web-node op-web-${n.kind}" style="left:${50 + n.r * Math.cos(rad)}%;top:${50 + n.r * Math.sin(rad)}%;--t:${n.tone}"><b>${esc(n.name)}</b><small>${esc(n.sub)}</small></div>`;
-    }).join('');
-    return `<div class="op-web">${lines}${dots}<div class="op-web-node op-web-me" style="left:50%;top:50%"><b>${esc(s.name)}</b><small>${esc(s.factionLabel)}</small></div></div>
-    <p class="op-dim op-center">파란 점선 = 동료 · 실선 = 인연 (분홍 연인 · 초록 신뢰 · 금색 호감 · 회색 안면 · 붉은색 적대)</p>`;
-}
 
 // ───────────────────────────── 상태 시트 ─────────────────────────────
 
@@ -2939,7 +3296,7 @@ async function openSheet() {
     const era = eraOf(s);
     const d = dangerOf(s.bounty);
     const f = factionOf(s.faction);
-    const tabs = [['stat', '상태'], ['web', '관계'], ['map', '지도'], ['album', '앨범'], ['power', '능력'], ['inv', '소지품·배'], ['log', '항해일지'], ['help', '안내'], ['admin', '관리']];
+    const tabs = [['stat', '상태'], ['web', '관계'], ['map', '지도'], settings().featAlbum && ['album', '앨범'], ['power', '능력'], ['inv', '소지품·배'], ['log', '항해일지'], ['help', '안내'], ['admin', '관리']].filter(Boolean);
     const el = h(`<div class="op-root op-pop op-sheet">
         <div class="op-sheet-head">
             ${s.bounty ? wantedHTML(s, s.bounty) : `<div class="op-seal" style="--c:${f.color}">${esc(s.name.slice(0, 1))}</div>`}
@@ -2991,13 +3348,15 @@ async function openSheet() {
             <h4 class="op-sub">배</h4>
             ${s.ship ? `<div class="op-item"><b><i class="fa-solid fa-sailboat"></i> ${esc(s.ship.name)}</b><span>${esc(s.ship.kind || '')} 선체 ${s.ship.hull}%${s.ship.status ? ` · <b class="neg">${esc(s.ship.status)}</b>` : ''}</span></div>
                 ${s.ship.parts?.length ? `<div class="op-chips">${s.ship.parts.map(x => `<span class="op-chip" title="${esc(SHIP_PARTS.find(y => y.name === x)?.desc ?? '')}">🔧 ${esc(x)}</span>`).join('')}</div>` : ''}` : '<p class="op-dim">배가 없다.</p>'}
-            ${s.prison ? '' : `<details class="op-edit"><summary>조선소 — 배 사기 · 개조하기</summary>
+            ${s.prison ? '' : ['marine', 'government'].includes(s.faction) && !isOutlaw(s) ? '<p class="op-dim">함선은 소속에서 배정됩니다. 개인 배는 필요 없다.</p>' : `<details class="op-edit"><summary>조선소 — 배 사기 · 개조하기</summary>
                 ${s.ship && !s.ship.status ? `<h4 class="op-sub">개조</h4><div class="op-shop">${SHIP_PARTS.filter(x => !s.ship.parts?.includes(x.name)).map(x => `<div class="op-item"><b>${esc(x.name)}</b><span>${esc(x.desc)}</span><button type="button" class="op-btn op-btn-sm" data-a="buypart" data-i="${SHIP_PARTS.indexOf(x)}" ${s.cash < x.price ? 'disabled' : ''}>${esc(korNum(x.price))}</button></div>`).join('')}</div>` : ''}
                 <h4 class="op-sub">새 배</h4><div class="op-shop">${SHIPS.map((x, i) => `<div class="op-item"><b>${esc(x.name)}</b><span>${esc(x.desc)}</span><button type="button" class="op-btn op-btn-sm" data-a="buyship" data-i="${i}" ${s.cash < x.price ? 'disabled' : ''}>${esc(korNum(x.price))}</button></div>`).join('')}</div>
-                <p class="op-dim">새 배를 사면 지금 배는 놓고 갑니다(개조도 사라짐).</p></details>`}
+                ${s.ship && !s.ship.status ? '<div class="op-inline"><input class="text_pole" data-f="partCustom" placeholder="개조 직접 입력 — 예: 미니 수영장"><button type="button" class="op-btn op-btn-sm" data-a="partcustom">달기</button></div>' : ''}
+                <p class="op-dim">새 배를 사면 지금 배는 놓고 갑니다(개조도 사라짐). 직접 입력한 개조는 돈이 들지 않으니 이야기에 맞게 쓰세요.</p></details>`}
             <h4 class="op-sub">소지품 · ${berry(s.cash)}</h4>
             ${s.items.length ? s.items.map(i => `<div class="op-item"><b>${esc(i.name)}</b><span>×${i.qty}</span>
                 <span class="op-mini"><button type="button" data-a="use" data-n="${esc(i.name)}" title="하나 쓰기">−</button><button type="button" data-a="addone" data-n="${esc(i.name)}" title="하나 추가">+</button></span></div>`).join('') : '<p class="op-dim">빈손이다.</p>'}
+            <div class="op-inline"><input class="text_pole" data-f="itemCustom" placeholder="소지품 직접 추가 — 예: 비브르 카드"><input type="number" min="1" class="text_pole op-num" data-f="itemQty" value="1"><button type="button" class="op-btn op-btn-sm" data-a="itemcustom">추가</button></div>
             <h4 class="op-sub">항구 상점</h4>
             ${s.prison ? '<p class="op-dim">감옥 안에서는 살 수 없다.</p>' : `<div class="op-shop">${SHOP.map((x, i) => `<div class="op-item"><b>${esc(x.name)}${x.qty > 1 ? ` ×${x.qty}` : ''}</b><span>${esc(x.desc)}</span>
                 <button type="button" class="op-btn op-btn-sm" data-a="buy" data-i="${i}" ${s.cash < x.price ? 'disabled' : ''}>${esc(korNum(x.price))}</button></div>`).join('')}</div>`}
@@ -3005,17 +3364,13 @@ async function openSheet() {
         <section data-p="map" class="op-hidden">${mapHTML(s)}</section>
         <section data-p="album" class="op-hidden">${albumHTML(s)}</section>
         <section data-p="web" class="op-hidden">
-            ${webHTML(s)}
             <h4 class="op-sub">동료 ${s.crew.length}/${CAP.crew}</h4>
             ${s.crew.length ? s.crew.map(c => `<div class="op-item"><b>${esc(c.name)}</b><span>${esc(c.role)}${c.status ? ` · <b class="neg">${esc(c.status)}</b>` : ''}</span>${c.status ? `<button type="button" class="op-x" data-a="regroup" data-n="${esc(c.name)}" title="다시 모였다">✓</button>` : ''}</div>`).join('') : '<p class="op-dim">아직 혼자다.</p>'}
             <h4 class="op-sub">인연 ${s.bonds.length}/${CAP.bonds}</h4>
             ${s.bonds.length ? topBonds(s, CAP.bonds).map(b => `<div class="op-item op-click" data-a="bondview" data-n="${esc(b.name)}"><b style="color:${affTone(b)}">${b.love >= 15 ? '♥' : '♡'} ${esc(b.name)}</b><span>${esc(b.rel ? `${b.rel} · ` : '')}신뢰 ${b.aff >= 0 ? '+' : ''}${b.aff}${b.love ? ` · 설렘 ${b.love} ${LOVE_NAME[loveStage(b.love)]}` : ''} ${esc(b.note)}</span><span class="op-dim">›</span></div>`).join('') : '<p class="op-dim">이야기 속에서 이름을 알게 된 사람이 여기에 남습니다.</p>'}
+            ${s.mail.length ? `<h4 class="op-sub">받은 편지</h4>${s.mail.slice().reverse().map(m => `<div class="op-item"><b>✉️ ${esc(m.from)}</b><span>${m.day}일차 · ${esc(m.text.slice(0, 60))}${m.text.length > 60 ? '…' : ''}</span></div>`).join('')}` : ''}
         </section>
         <section data-p="log" class="op-hidden">
-            <h4 class="op-sub">📖 챕터 ${(getMeta()?.chapters ?? []).length}</h4>
-            ${(getMeta()?.chapters ?? []).map((c, i) => `<div class="op-chapter"><b>${esc(c.title)}</b><small>${c.day ?? ''}일차까지 · 메시지 ${c.from}~${c.to}</small><p>${esc(c.summary)}</p><button type="button" class="op-x" data-a="delch" data-i="${i}" title="지우기">×</button></div>`).join('') || '<p class="op-dim">이야기가 길어지면 지금까지를 한 챕터로 요약해 둡니다. 최근 두 챕터가 AI에게 "지금까지의 이야기"로 전달돼요.</p>'}
-            <div class="op-roll-actions"><button type="button" class="op-btn op-btn-hot" data-a="chapter"><i class="fa-solid fa-book"></i> 지금까지를 챕터로 묶기</button></div>
-            <label class="checkbox_label op-center"><input type="checkbox" data-f="hide"> 묶은 구간의 오래된 메시지 숨기기 (최근 6개는 남김 · 상태 수치는 그대로)</label>
             <h4 class="op-sub">항해일지</h4>
             ${s.deaths.length ? `<p class="op-warn">사망 ${s.deaths.length}회 · 회귀 ${s.rewinds}회 — ${s.deaths.map(x => `${x.day}일차 ${esc(x.loc)}`).join(' / ')}</p>` : ''}
             <div class="op-log">${s.log.slice().reverse().map(l => `<div><span>${l.day}일차</span>${esc(l.text)}</div>`).join('')}</div>
@@ -3094,14 +3449,32 @@ async function openSheet() {
             await addAdjust([['cash', `-${x.price}`], ['upgrade', `+${x.name}`]], `배 개조 — ${x.name}`);
             close(); setTimeout(() => openSheetTab('inv'), 200); return;
         }
-        if (a === 'chapter') { await makeChapter(b, el.querySelector('[data-f="hide"]')?.checked); close(); setTimeout(() => openSheetTab('log'), 200); return; }
-        if (a === 'delch') { const m = getMeta(); m.chapters.splice(Number(b.dataset.i), 1); await saveMeta(true); refreshNow(); close(); setTimeout(() => openSheetTab('log'), 200); return; }
+
         if (a === 'goto') { insertInput(`(${b.dataset.n}(으)로 향한다.) `, false, 'replace'); close(); return; }
         if (a === 'buy') {
             const x = SHOP[Number(b.dataset.i)];
             if (s.cash < x.price) return toastr.warning('베리가 모자라다.', TITLE);
             await addAdjust([['cash', `-${x.price}`], ['item', `+${x.name} ${x.qty}`]], `구입 — ${x.name}${x.qty > 1 ? ` ×${x.qty}` : ''}`);
             toastr.success(`${esc(x.name)} 구입`, TITLE); close(); setTimeout(() => openSheetTab('inv'), 200); return;
+        }
+        if (a === 'itemcustom') {
+            const n = el.querySelector('[data-f="itemCustom"]').value.trim();
+            if (!n) return;
+            await addAdjust([['item', `+${n} ${Math.max(1, Number(el.querySelector('[data-f="itemQty"]').value) || 1)}`]], `추가 — ${n}`);
+            close(); setTimeout(() => openSheetTab('inv'), 200); return;
+        }
+        if (a === 'partcustom') {
+            const n = el.querySelector('[data-f="partCustom"]').value.trim();
+            if (!n) return;
+            await addAdjust([['upgrade', `+${n}`]], `배 개조 — ${n}`);
+            close(); setTimeout(() => openSheetTab('inv'), 200); return;
+        }
+        if (a === 'aladd') {
+            const k = el.querySelector('[data-f="alKind"]').value, n = el.querySelector('[data-f="alName"]').value.trim();
+            const d = el.querySelector('[data-f="alDesc"]').value.trim(), w = el.querySelector('[data-f="alWith"]').value.trim();
+            if (!n) return toastr.warning('제목을 써 주세요.', TITLE);
+            await addAdjust([k === 'memory' ? ['memory', `${n} | ${d} | ${w}`] : ['discover', `${n} | ${k} | ${d}`]], '');
+            close(); setTimeout(() => openSheetTab('album'), 200); return;
         }
         if (a === 'use' || a === 'addone') {
             const n = b.dataset.n;
@@ -3147,6 +3520,10 @@ function renderSettings() {
                 <label class="checkbox_label"><input type="checkbox" data-s="autoRegister" ${s.autoRegister ? 'checked' : ''}> 출항하지 않은 채팅을 열면 출항 창 자동 열기</label>
                 <label class="checkbox_label"><input type="checkbox" data-s="ticker" ${s.ticker ? 'checked' : ''}> 상태창에 최신 뉴스 한 줄 표시</label>
                 <label class="checkbox_label"><input type="checkbox" data-s="effects" ${s.effects ? 'checked' : ''}> 연출 효과 (현상금 갱신 번쩍임, 빈사·수감 화면 효과)</label>
+                <details class="op-feats"><summary><b>기능 켜고 끄기</b> (부수 기능)</summary>
+                    ${[['featAct', '🏝️ 오늘 뭐 하지? (활동)'], ['featLetter', '✉️ 편지 (뉴스 쿠 우편)'], ['featMemo', '📝 메모장'], ['featHex', '🌀 해프닝 (랜덤 저주)'], ['featBoard', '📋 의뢰 게시판'], ['featNews', '📰 세계경제신문'], ['featDates', '🎂 생일·기념일'], ['featRumor', '👂 섬 소문 (AI)'], ['featAlbum', '📷 앨범 (추억·발견)']].map(([k, n]) => `<label class="checkbox_label"><input type="checkbox" data-s="${k}" ${s[k] ? 'checked' : ''}> ${n}</label>`).join('')}
+                    <label>해프닝 자동 발동<select class="text_pole" data-s="hexAuto">${o('hexAuto', 'off', '끔 (버튼으로만)')}${o('hexAuto', 'rare', '가끔')}${o('hexAuto', 'normal', '종종')}</select></label>
+                </details>
                 <label>랜덤 이벤트 (날짜가 넘어갈 때)<select class="text_pole" data-s="events">${o('events', 'off', '끔')}${o('events', 'low', '가끔')}${o('events', 'normal', '보통')}${o('events', 'high', '자주')}</select></label>
                 <label>메시지 상태 카드<select class="text_pole" data-s="msgCard">${o('msgCard', 'compact', '간단 (변동 칩)')}${o('msgCard', 'full', '최신 응답은 게이지까지')}${o('msgCard', 'off', '숨기기')}</select></label>
                 <label>선택지<select class="text_pole" data-s="choices">${o('choices', 'tense', '의뢰·전투·수감 중에만')}${o('choices', 'always', '항상')}${o('choices', 'off', '쓰지 않음')}</select></label>
@@ -3200,7 +3577,9 @@ function registerCommands() {
     simple('op-new', () => openRegister(!!getMeta()?.profile), '출항(캐릭터 생성) 창을 연다. 이미 출항했다면 수정 창.');
     simple('op-skip', openTimeskip, '타임스킵 창을 연다.');
     simple('op-act', () => openActivity(), '「오늘 뭐 하지?」 활동 창을 연다.');
-    simple('op-chapter', () => makeChapter(null, false), '지금까지의 이야기를 챕터 하나로 요약한다.');
+    simple('op-letter', () => openLetters(), '편지(뉴스 쿠 우편) 창을 연다.');
+    simple('op-memo', () => openMemo(), '메모장을 연다.');
+    simple('op-hex', () => openHex(), '해프닝(랜덤 저주) 창을 연다.');
     simple('op-album', () => openSheetTab('album'), '앨범(추억·발견·상륙한 섬)을 연다.');
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
         name: 'op-roll',
