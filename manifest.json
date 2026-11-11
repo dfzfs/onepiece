@@ -1,0 +1,13 @@
+{
+    "display_name": "원피스 시뮬봇 HUD (OnePieceSim)",
+    "loading_order": 20,
+    "requires": [],
+    "optional": [],
+    "dependencies": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "원피스 시뮬봇 제작자",
+    "version": "1.3.0",
+    "homePage": "https://github.com/YOUR-ID/ST-OnePieceSim",
+    "auto_update": true
+}
